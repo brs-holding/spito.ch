@@ -7,6 +7,7 @@ import PatientDashboard from "./pages/PatientDashboard";
 import PatientRegistration from "./pages/PatientRegistration";
 import PricingPage from "./pages/PricingPage";
 import HomePage from "./pages/HomePage";
+import { EmployeeManagement } from "@/components/dashboard/EmployeeManagement";
 import { useUser } from "./hooks/use-user";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/ui/Header";
@@ -30,9 +31,15 @@ function App() {
         <Switch>
           <Route path="/" component={HomePage} />
           <Route path="/pricing" component={PricingPage} />
-          <Route path="/register" component={() => <AuthPage isRegister={true} />} />
-          <Route path="/login" component={AuthPage} />
-          <Route component={HomePage} />
+          <Route path="/register">
+            <AuthPage isRegister={true} />
+          </Route>
+          <Route path="/login">
+            <AuthPage />
+          </Route>
+          <Route>
+            <HomePage />
+          </Route>
         </Switch>
         <Toaster />
       </>
@@ -48,6 +55,9 @@ function App() {
           <Route path="/" component={user.role === "patient" ? PatientDashboard : Dashboard} />
           <Route path="/register-patient" component={PatientRegistration} />
           <Route path="/pricing" component={PricingPage} />
+          <Route path="/employees">
+            {user.role === "spitex_org" ? <EmployeeManagement /> : <NotFound />}
+          </Route>
           <Route component={NotFound} />
         </Switch>
       </main>

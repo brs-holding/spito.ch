@@ -8,7 +8,9 @@ import {
   Calendar,
   Settings,
   LogOut,
+  UserPlus,
 } from "lucide-react";
+import { Link } from "wouter";
 
 interface SidebarProps {
   user: User;
@@ -33,26 +35,49 @@ export default function Sidebar({ user }: SidebarProps) {
         </div>
 
         <nav className="space-y-2">
-          <Button variant="ghost" className="w-full justify-start">
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            Dashboard
-          </Button>
-          <Button variant="ghost" className="w-full justify-start">
-            <Users className="mr-2 h-4 w-4" />
-            Patients
-          </Button>
-          <Button variant="ghost" className="w-full justify-start">
-            <ClipboardList className="mr-2 h-4 w-4" />
-            Care Plans
-          </Button>
-          <Button variant="ghost" className="w-full justify-start">
-            <Calendar className="mr-2 h-4 w-4" />
-            Schedule
-          </Button>
-          <Button variant="ghost" className="w-full justify-start">
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Button>
+          <Link href="/">
+            <Button variant="ghost" className="w-full justify-start">
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              Dashboard
+            </Button>
+          </Link>
+
+          {user.role === "spitex_org" && (
+            <Link href="/employees">
+              <Button variant="ghost" className="w-full justify-start">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Employees
+              </Button>
+            </Link>
+          )}
+
+          <Link href="/patients">
+            <Button variant="ghost" className="w-full justify-start">
+              <Users className="mr-2 h-4 w-4" />
+              Patients
+            </Button>
+          </Link>
+
+          <Link href="/care-plans">
+            <Button variant="ghost" className="w-full justify-start">
+              <ClipboardList className="mr-2 h-4 w-4" />
+              Care Plans
+            </Button>
+          </Link>
+
+          <Link href="/schedule">
+            <Button variant="ghost" className="w-full justify-start">
+              <Calendar className="mr-2 h-4 w-4" />
+              Schedule
+            </Button>
+          </Link>
+
+          <Link href="/settings">
+            <Button variant="ghost" className="w-full justify-start">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </Button>
+          </Link>
         </nav>
 
         <div className="absolute bottom-4 w-56">
