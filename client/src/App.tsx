@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, Loader2 } from "lucide-react";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
+import PatientDashboard from "./pages/PatientDashboard";
 import { useUser } from "./hooks/use-user";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -24,7 +25,10 @@ function App() {
   return (
     <>
       <Switch>
-        <Route path="/" component={Dashboard} />
+        <Route 
+          path="/" 
+          component={user.role === "patient" ? PatientDashboard : Dashboard} 
+        />
         <Route component={NotFound} />
       </Switch>
       <Toaster />

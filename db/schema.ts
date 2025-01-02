@@ -6,17 +6,29 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
-  role: text("role", { enum: ["doctor", "nurse", "admin"] }).notNull().default("nurse"),
+  role: text("role", { enum: ["doctor", "nurse", "admin", "patient"] }).notNull().default("nurse"),
   fullName: text("full_name").notNull(),
 });
 
 export const patients = pgTable("patients", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   dateOfBirth: timestamp("date_of_birth").notNull(),
   medicalHistory: text("medical_history"),
   contactInfo: jsonb("contact_info").notNull(),
+});
+
+export const healthMetrics = pgTable("health_metrics", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  type: text("type", { 
+    enum: ["blood_pressure", "weight", "temperature", "blood_sugar", "heart_rate", "pain_level"] 
+  }).notNull(),
+  value: jsonb("value").notNull(),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  notes: text("notes"),
 });
 
 export const carePlans = pgTable("care_plans", {
@@ -48,12 +60,21 @@ export const progress = pgTable("progress", {
 });
 
 // Relations
-export const userRelations = relations(users, ({ many }) => ({
+export const userRelations = relations(users, ({ many, one }) => ({
   assignedTasks: many(tasks),
+  patient: one(patients, {
+    fields: [users.id],
+    references: [patients.userId],
+  }),
 }));
 
-export const patientRelations = relations(patients, ({ many }) => ({
+export const patientRelations = relations(patients, ({ many, one }) => ({
   carePlans: many(carePlans),
+  healthMetrics: many(healthMetrics),
+  user: one(users, {
+    fields: [patients.userId],
+    references: [users.id],
+  }),
 }));
 
 export const carePlanRelations = relations(carePlans, ({ one, many }) => ({
@@ -81,8 +102,12 @@ export const selectTaskSchema = createSelectSchema(tasks);
 export const insertProgressSchema = createInsertSchema(progress);
 export const selectProgressSchema = createSelectSchema(progress);
 
+export const insertHealthMetricSchema = createInsertSchema(healthMetrics);
+export const selectHealthMetricSchema = createSelectSchema(healthMetrics);
+
 export type User = typeof users.$inferSelect;
 export type Patient = typeof patients.$inferSelect;
 export type CarePlan = typeof carePlans.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Progress = typeof progress.$inferSelect;
+export type HealthMetric = typeof healthMetrics.$inferSelect;

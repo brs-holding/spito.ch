@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { patients, carePlans, tasks, progress } from "@db/schema";
+import { patients, carePlans, tasks, progress, healthMetrics } from "@db/schema";
 import { eq } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
@@ -83,6 +83,61 @@ export function registerRoutes(app: Express): Server {
     }
     const newProgress = await db.insert(progress).values(req.body).returning();
     res.json(newProgress[0]);
+  });
+
+  // Patient Portal Routes
+  app.get("/api/patient/health-metrics", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user.role !== "patient") {
+      return res.status(403).send("Not authorized");
+    }
+
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.userId, req.user.id))
+      .limit(1);
+
+    if (!patient) {
+      return res.status(404).send("Patient profile not found");
+    }
+
+    const metrics = await db
+      .select()
+      .from(healthMetrics)
+      .where(eq(healthMetrics.patientId, patient.id));
+
+    res.json(metrics);
+  });
+
+  app.post("/api/patient/health-metrics", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user.role !== "patient") {
+      return res.status(403).send("Not authorized");
+    }
+
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.userId, req.user.id))
+      .limit(1);
+
+    if (!patient) {
+      return res.status(404).send("Patient profile not found");
+    }
+
+    const newMetric = await db
+      .insert(healthMetrics)
+      .values({ ...req.body, patientId: patient.id })
+      .returning();
+
+    res.json(newMetric[0]);
   });
 
   const httpServer = createServer(app);
