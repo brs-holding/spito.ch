@@ -3,40 +3,12 @@ import { IVerifyOptions, Strategy as LocalStrategy } from "passport-local";
 import { type Express } from "express";
 import session from "express-session";
 import createMemoryStore from "memorystore";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
-import { users, organizations, type User as SelectUser } from "@db/schema";
+import { users, organizations, type User } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-
-const scryptAsync = promisify(scrypt);
-const crypto = {
-  hash: async (password: string) => {
-    const salt = randomBytes(16).toString("hex");
-    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-    return `${buf.toString("hex")}.${salt}`;
-  },
-  compare: async (suppliedPassword: string, storedPassword: string) => {
-    const [hashedPassword, salt] = storedPassword.split(".");
-    if (!hashedPassword || !salt) {
-      return false;
-    }
-    const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
-    const suppliedPasswordBuf = (await scryptAsync(
-      suppliedPassword,
-      salt,
-      64
-    )) as Buffer;
-    return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
-  },
-};
-
-declare global {
-  namespace Express {
-    interface User extends SelectUser {}
-  }
-}
+import { crypto } from "./utils/crypto";
+import { promisify } from "util";
 
 // Define login schema separately from user schema
 const loginSchema = z.object({
@@ -53,18 +25,17 @@ const registerSchema = z.object({
   role: z.enum(["super_admin", "spitex_org", "spitex_employee", "freelancer", "insurance", "family_member", "patient"]),
   organizationName: z.string().optional(),
   organizationType: z.string().optional(),
-  hourlyRate: z.number().optional(),
-  monthlyFixedCosts: z.object({
-    healthInsurance: z.number().optional(),
-    socialSecurity: z.number().optional(),
-    pensionFund: z.number().optional(),
-    accidentInsurance: z.number().optional(),
-    familyAllowances: z.number().optional(),
-    otherExpenses: z.number().optional(),
-  }).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
 });
+
+// Define base user type without sensitive data
+type SafeUser = Omit<User, 'password'>;
+
+declare global {
+  namespace Express {
+    // eslint-disable-next-line @typescript-eslint/no-empty-interface
+    interface User extends SafeUser {}
+  }
+}
 
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
@@ -74,7 +45,7 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     cookie: {},
     store: new MemoryStore({
-      checkPeriod: 86400000,
+      checkPeriod: 86400000, // prune expired entries every 24h
     }),
   };
 
@@ -107,14 +78,15 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Incorrect password." });
         }
 
-        return done(null, user);
+        const { password: _, ...userWithoutPassword } = user;
+        return done(null, userWithoutPassword);
       } catch (err) {
         return done(err);
       }
     })
   );
 
-  passport.serializeUser((user, done) => {
+  passport.serializeUser((user: Express.User, done) => {
     done(null, user.id);
   });
 
@@ -125,7 +97,13 @@ export function setupAuth(app: Express) {
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
-      done(null, user);
+
+      if (!user) {
+        return done(null, false);
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      done(null, userWithoutPassword);
     } catch (err) {
       done(err);
     }
@@ -170,7 +148,7 @@ export function setupAuth(app: Express) {
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { username, password, fullName, email, role, organizationName, organizationType, hourlyRate, monthlyFixedCosts, startDate, endDate } = result.data;
+      const { username, password, fullName, email, role, organizationName, organizationType } = result.data;
 
       // Check if user already exists
       const [existingUser] = await db
@@ -183,9 +161,6 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
-      // Hash the password
-      const hashedPassword = await crypto.hash(password);
-
       let organizationId: number | undefined;
 
       // Create organization if required
@@ -194,16 +169,21 @@ export function setupAuth(app: Express) {
           .insert(organizations)
           .values({
             name: organizationName,
-            type: organizationType,
+            type: organizationType as "spitex" | "insurance",
             subscriptionTier: "free_trial",
             maxCaregivers: role === "spitex_org" ? 3 : undefined,
             address: {},
-            contactInfo: {}
+            contactInfo: {},
+            createdAt: new Date(),
+            updatedAt: new Date()
           })
           .returning();
 
         organizationId = newOrg.id;
       }
+
+      // Hash the password
+      const hashedPassword = await crypto.hash(password);
 
       // Create the new user
       const [newUser] = await db
@@ -215,23 +195,20 @@ export function setupAuth(app: Express) {
           email,
           role,
           organizationId,
-          hourlyRate,
-          monthlyFixedCosts,
-          startDate: startDate ? new Date(startDate) : undefined,
-          endDate: endDate ? new Date(endDate) : undefined,
-          createdAt: new Date(),
           isActive: true,
+          createdAt: new Date(),
         })
         .returning();
 
       // Log the user in after registration
-      req.login(newUser, (err) => {
+      const { password: _, ...userWithoutPassword } = newUser;
+      req.login(userWithoutPassword, (err) => {
         if (err) {
           return next(err);
         }
         return res.json({
           message: "Registration successful",
-          user: newUser,
+          user: userWithoutPassword
         });
       });
     } catch (error) {

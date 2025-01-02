@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
+import { crypto } from "./utils/crypto";
 import {
   users,
   insertUserSchema,
@@ -84,11 +85,14 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
+      // Hash the password before storing
+      const hashedPassword = await crypto.hash(result.data.password);
+
       const [newEmployee] = await db
         .insert(users)
         .values({
           username: result.data.username,
-          password: result.data.password,
+          password: hashedPassword, // Use the hashed password
           email: result.data.email,
           fullName: result.data.fullName,
           role: "spitex_employee",
