@@ -13,6 +13,7 @@ import {
 import { Patient } from "@db/schema";
 import { Search, UserPlus } from "lucide-react";
 import { useState } from "react";
+import { Link } from "wouter";
 
 interface PatientListProps {
   onSelectPatient: (patient: Patient) => void;
@@ -20,7 +21,7 @@ interface PatientListProps {
 
 export default function PatientList({ onSelectPatient }: PatientListProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   const { data: patients, isLoading } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
   });
@@ -34,10 +35,12 @@ export default function PatientList({ onSelectPatient }: PatientListProps) {
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Patients</CardTitle>
-          <Button size="sm">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Patient
-          </Button>
+          <Link href="/register-patient">
+            <Button size="sm" className="cursor-pointer">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add Patient
+            </Button>
+          </Link>
         </div>
       </CardHeader>
       <CardContent>
@@ -50,7 +53,7 @@ export default function PatientList({ onSelectPatient }: PatientListProps) {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
+
         <div className="overflow-auto max-h-[calc(50vh-12rem)]">
           <Table>
             <TableHeader>
@@ -80,7 +83,7 @@ export default function PatientList({ onSelectPatient }: PatientListProps) {
                     {new Date(patient.dateOfBirth).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    {(patient.contactInfo as { phone: string })?.phone}
+                    {patient.phone}
                   </TableCell>
                 </TableRow>
               ))}
