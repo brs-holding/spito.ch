@@ -22,11 +22,12 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import type { HealthMetric } from "@db/schema";
 import { Activity, PlusCircle } from "lucide-react";
+import MedicationTracker from "@/components/dashboard/MedicationTracker";
 
 export default function PatientDashboard() {
   const { user } = useUser();
   const [metricType, setMetricType] = useState<string>("blood_pressure");
-  
+
   const { data: healthMetrics, isLoading } = useQuery<HealthMetric[]>({
     queryKey: [`/api/patient/health-metrics`],
   });
@@ -64,7 +65,7 @@ export default function PatientDashboard() {
               <p className="text-xs text-muted-foreground">Last updated: Today</p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium">Heart Rate</CardTitle>
@@ -74,7 +75,7 @@ export default function PatientDashboard() {
               <p className="text-xs text-muted-foreground">Last updated: Today</p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium">Weight</CardTitle>
@@ -84,7 +85,7 @@ export default function PatientDashboard() {
               <p className="text-xs text-muted-foreground">Last updated: Yesterday</p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium">Daily Activity</CardTitle>
@@ -96,67 +97,71 @@ export default function PatientDashboard() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Health Trends</CardTitle>
-              <Select
-                value={metricType}
-                onValueChange={(value) => setMetricType(value)}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select metric" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="blood_pressure">Blood Pressure</SelectItem>
-                  <SelectItem value="heart_rate">Heart Rate</SelectItem>
-                  <SelectItem value="weight">Weight</SelectItem>
-                  <SelectItem value="temperature">Temperature</SelectItem>
-                  <SelectItem value="blood_sugar">Blood Sugar</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={chartData}
-                  margin={{
-                    top: 5,
-                    right: 10,
-                    left: 10,
-                    bottom: 5,
-                  }}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <MedicationTracker />
+
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Health Trends</CardTitle>
+                <Select
+                  value={metricType}
+                  onValueChange={(value) => setMetricType(value)}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    style={{ fontSize: '12px' }}
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                  />
-                  <YAxis
-                    style={{ fontSize: '12px' }}
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select metric" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="blood_pressure">Blood Pressure</SelectItem>
+                    <SelectItem value="heart_rate">Heart Rate</SelectItem>
+                    <SelectItem value="weight">Weight</SelectItem>
+                    <SelectItem value="temperature">Temperature</SelectItem>
+                    <SelectItem value="blood_sugar">Blood Sugar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={chartData}
+                    margin={{
+                      top: 5,
+                      right: 10,
+                      left: 10,
+                      bottom: 5,
                     }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="date"
+                      style={{ fontSize: '12px' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis
+                      style={{ fontSize: '12px' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

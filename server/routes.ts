@@ -2,8 +2,17 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { patients, carePlans, tasks, progress, healthMetrics } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { 
+  patients, 
+  carePlans, 
+  tasks, 
+  progress, 
+  healthMetrics, 
+  medications,
+  medicationSchedules,
+  medicationAdherence 
+} from "@db/schema";
+import { eq, and, gte, lte } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -83,6 +92,85 @@ export function registerRoutes(app: Express): Server {
     }
     const newProgress = await db.insert(progress).values(req.body).returning();
     res.json(newProgress[0]);
+  });
+
+  // Medication Routes
+  app.get("/api/medications", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const allMedications = await db.select().from(medications);
+    res.json(allMedications);
+  });
+
+  app.get("/api/patient/medications", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.userId, req.user!.id))
+      .limit(1);
+
+    if (!patient) {
+      return res.status(404).send("Patient profile not found");
+    }
+
+    const schedules = await db
+      .select()
+      .from(medicationSchedules)
+      .where(
+        and(
+          eq(medicationSchedules.patientId, patient.id),
+          eq(medicationSchedules.active, true)
+        )
+      );
+
+    const medicationIds = schedules.map(schedule => schedule.medicationId);
+    const medicationDetails = await db
+      .select()
+      .from(medications)
+      .where(eq(medications.id, medicationIds[0])); // Using first ID as example
+
+    res.json({ schedules, medications: medicationDetails });
+  });
+
+  app.post("/api/patient/medication-adherence", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.userId, req.user!.id))
+      .limit(1);
+
+    if (!patient) {
+      return res.status(404).send("Patient profile not found");
+    }
+
+    const newAdherence = await db
+      .insert(medicationAdherence)
+      .values(req.body)
+      .returning();
+
+    res.json(newAdherence[0]);
+  });
+
+  app.get("/api/patient/medication-adherence/:scheduleId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const adherenceRecords = await db
+      .select()
+      .from(medicationAdherence)
+      .where(eq(medicationAdherence.scheduleId, parseInt(req.params.scheduleId)));
+
+    res.json(adherenceRecords);
   });
 
   // Patient Portal Routes
