@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/ui/Logo";
+import { useLocation } from "wouter";
 
 type FormData = {
   username: string;
@@ -23,6 +24,7 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
   const { register: registerUser, login } = useUser();
   const { toast } = useToast();
   const { register, handleSubmit, reset } = useForm<FormData>();
+  const [, setLocation] = useLocation();
 
   // Update isRegister state when prop changes
   useEffect(() => {
@@ -39,11 +41,13 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
         if (!result.ok) {
           throw new Error(result.message);
         }
+        setLocation('/'); // Redirect to main page after successful registration
       } else {
         const result = await login(data);
         if (!result.ok) {
           throw new Error(result.message);
         }
+        setLocation('/'); // Redirect to main page after successful login
       }
     } catch (error: any) {
       toast({
