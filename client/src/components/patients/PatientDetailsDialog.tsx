@@ -20,6 +20,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { LoadingTransition } from "@/components/ui/LoadingTransition";
+import DocumentUpload from "./DocumentUpload";
+import DocumentList from "./DocumentList";
 
 interface PatientDetailsDialogProps {
   patient: Patient | null;
@@ -225,13 +227,17 @@ export default function PatientDetailsDialog({
             </TabsContent>
 
             <TabsContent value="documents" className="space-y-4">
-              {/* Document upload and management will be implemented in the next iteration */}
               <Card>
                 <CardContent className="pt-6">
-                  <h3 className="font-medium mb-4">Documents</h3>
-                  <p className="text-muted-foreground">
-                    Document management feature coming soon
-                  </p>
+                  <h3 className="font-medium mb-4">Dokumente</h3>
+                  <DocumentUpload patientId={patient.id} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="font-medium mb-4">Dokumentenliste</h3>
+                  <DocumentList patientId={patient.id} />
                 </CardContent>
               </Card>
             </TabsContent>
