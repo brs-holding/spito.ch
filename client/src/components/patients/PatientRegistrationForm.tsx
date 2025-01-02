@@ -105,6 +105,7 @@ const STEPS = [
 export default function PatientRegistrationForm() {
   const { toast } = useToast();
   const [activeStep, setActiveStep] = useState(0);
+  const [patientId, setPatientId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const form = useForm<PatientFormValues>({
@@ -122,83 +123,96 @@ export default function PatientRegistrationForm() {
     },
   });
 
-  const createPatient = useMutation({
-    mutationFn: async (data: PatientFormValues) => {
-      const formData = new FormData();
+  const saveStep = useMutation({
+    mutationFn: async (data: Partial<PatientFormValues> & { step: number }) => {
+      const { step, ...formData } = data;
+      const endpoint = patientId ? `/api/patients/${patientId}` : "/api/patients";
+      const method = patientId ? "PUT" : "POST";
 
       try {
-        // Format dates with proper timezone handling
-        const dateOfBirth = new Date(data.dateOfBirth);
-        const dateOfSigning = new Date(data.contract.dateOfSigning);
+        let processedData = { ...formData };
 
-        // Add timezone offset to ensure consistent UTC time
-        dateOfBirth.setMinutes(dateOfBirth.getMinutes() - dateOfBirth.getTimezoneOffset());
-        dateOfSigning.setMinutes(dateOfSigning.getMinutes() - dateOfSigning.getTimezoneOffset());
+        if (step === 0 && formData.dateOfBirth) {
+          const dateOfBirth = new Date(formData.dateOfBirth);
+          dateOfBirth.setMinutes(dateOfBirth.getMinutes() - dateOfBirth.getTimezoneOffset());
+          processedData.dateOfBirth = dateOfBirth.toISOString();
+        }
 
-        const processedData = {
-          ...data,
-          dateOfBirth: dateOfBirth.toISOString(),
-          contract: {
-            ...data.contract,
-            dateOfSigning: dateOfSigning.toISOString(),
-          },
-          currentDiagnoses: data.currentDiagnoses
-            ? String(data.currentDiagnoses).split(',').map(item => item.trim()).filter(Boolean)
-            : [],
-          allergies: data.allergies
-            ? String(data.allergies).split(',').map(item => item.trim()).filter(Boolean)
-            : [],
-        };
+        if (step === 3 && formData.contract?.dateOfSigning) {
+          const dateOfSigning = new Date(formData.contract.dateOfSigning);
+          dateOfSigning.setMinutes(dateOfSigning.getMinutes() - dateOfSigning.getTimezoneOffset());
+          processedData = {
+            ...processedData,
+            contract: {
+              ...processedData.contract,
+              dateOfSigning: dateOfSigning.toISOString(),
+            },
+          };
+        }
 
-        // Add basic patient data
+        if (step === 1) {
+          if (formData.currentDiagnoses) {
+            processedData.currentDiagnoses = Array.isArray(formData.currentDiagnoses)
+              ? formData.currentDiagnoses
+              : String(formData.currentDiagnoses).split(',').map(item => item.trim()).filter(Boolean);
+          }
+          if (formData.allergies) {
+            processedData.allergies = Array.isArray(formData.allergies)
+              ? formData.allergies
+              : String(formData.allergies).split(',').map(item => item.trim()).filter(Boolean);
+          }
+        }
+
+        const fd = new FormData();
         Object.entries(processedData).forEach(([key, value]) => {
-          if (key !== 'documents' && key !== 'contract') {
-            formData.append(key, JSON.stringify(value));
+          if (value !== undefined) {
+            if (key === 'documents') {
+              const docs = value as { healthInsurance?: File, otherDocuments: File[] };
+              if (docs.healthInsurance) {
+                fd.append('healthInsurance', docs.healthInsurance);
+              }
+              docs.otherDocuments?.forEach(file => {
+                fd.append('otherDocuments', file);
+              });
+            } else {
+              fd.append(key, JSON.stringify(value));
+            }
           }
         });
 
-        // Add documents
-        if (data.documents.healthInsurance) {
-          formData.append('healthInsurance', data.documents.healthInsurance);
-        }
-        data.documents.otherDocuments.forEach((file) => {
-          formData.append('otherDocuments', file);
-        });
-
-        // Add contract data
-        formData.append('contract', JSON.stringify(processedData.contract));
-
-        const response = await fetch("/api/patients", {
-          method: "POST",
-          body: formData,
+        const response = await fetch(endpoint, {
+          method,
+          body: fd,
           credentials: "include",
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to create patient');
+          throw new Error(errorData.message || 'Failed to save patient data');
         }
 
-        return response.json();
+        const result = await response.json();
+        return result;
       } catch (error) {
-        console.error("Error processing form data:", error);
+        console.error("Error saving step:", error);
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (!patientId) {
+        setPatientId(data.id);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Success",
-        description: "Patient information saved successfully",
+        description: "Progress saved successfully",
       });
-      form.reset();
-      setActiveStep(0);
     },
     onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to save patient information",
+        description: error.message || "Failed to save progress",
       });
     },
   });
@@ -250,7 +264,20 @@ export default function PatientRegistrationForm() {
   const handleNext = async () => {
     const isValid = await isStepValid(activeStep);
     if (isValid) {
-      setActiveStep((prev) => Math.min(prev + 1, STEPS.length - 1));
+      const stepFields = getFieldsForStep(activeStep);
+      const stepData = Object.fromEntries(
+        stepFields.map(field => {
+          const value = form.getValues(field as any);
+          return [field.split('.')[0], value];
+        })
+      );
+
+      try {
+        await saveStep.mutateAsync({ ...stepData, step: activeStep });
+        setActiveStep((prev) => Math.min(prev + 1, STEPS.length - 1));
+      } catch (error) {
+        console.error("Error saving step:", error);
+      }
     } else {
       toast({
         variant: "destructive",
@@ -266,7 +293,20 @@ export default function PatientRegistrationForm() {
 
   async function onSubmit(data: PatientFormValues) {
     try {
-      await createPatient.mutateAsync(data);
+      await saveStep.mutateAsync({ 
+        preferences: data.preferences,
+        familyAccess: data.familyAccess,
+        step: activeStep 
+      });
+
+      form.reset();
+      setActiveStep(0);
+      setPatientId(null);
+
+      toast({
+        title: "Success",
+        description: "Patient registration completed successfully",
+      });
     } catch (error) {
       console.error("Error submitting form:", error);
     }
@@ -277,7 +317,6 @@ export default function PatientRegistrationForm() {
       case 0:
         return (
           <div className="space-y-4">
-            {/* Basic Information Fields */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -473,7 +512,6 @@ export default function PatientRegistrationForm() {
       case 1:
         return (
           <div className="space-y-4">
-            {/* Medical Information Fields */}
             <FormField
               control={form.control}
               name="medicalHistory"
@@ -494,7 +532,7 @@ export default function PatientRegistrationForm() {
                 <FormItem>
                   <FormLabel>Current Diagnoses</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       {...field}
                       onChange={(e) => {
                         onChange(e.target.value);
@@ -518,7 +556,7 @@ export default function PatientRegistrationForm() {
                 <FormItem>
                   <FormLabel>Allergies</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       {...field}
                       onChange={(e) => {
                         onChange(e.target.value);
@@ -808,12 +846,16 @@ export default function PatientRegistrationForm() {
           </Button>
 
           {activeStep === STEPS.length - 1 ? (
-            <Button type="submit" disabled={createPatient.isPending}>
-              {createPatient.isPending ? "Registering..." : "Register Patient"}
+            <Button type="submit" disabled={saveStep.isPending}>
+              {saveStep.isPending ? "Registering..." : "Register Patient"}
             </Button>
           ) : (
-            <Button type="button" onClick={handleNext}>
-              Next
+            <Button 
+              type="button" 
+              onClick={handleNext}
+              disabled={saveStep.isPending}
+            >
+              {saveStep.isPending ? "Saving..." : "Next"}
             </Button>
           )}
         </div>

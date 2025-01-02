@@ -24,6 +24,173 @@ import { eq, and, gte, lte } from "drizzle-orm";
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
+  // Patient Profile Routes
+  app.get("/api/patients", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const allPatients = await db.select().from(patients);
+    res.json(allPatients);
+  });
+
+  app.get("/api/patients/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.id, parseInt(req.params.id)))
+      .limit(1);
+
+    if (!patient) {
+      return res.status(404).send("Patient not found");
+    }
+    res.json(patient);
+  });
+
+  app.post("/api/patients", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      // Process and validate dates
+      const patientData: any = { ...req.body };
+
+      // Handle dateOfBirth if present
+      if (patientData.dateOfBirth) {
+        try {
+          const dateOfBirth = new Date(patientData.dateOfBirth);
+          if (isNaN(dateOfBirth.getTime())) {
+            throw new Error("Invalid date of birth");
+          }
+          patientData.dateOfBirth = dateOfBirth;
+        } catch (error) {
+          return res.status(400).json({
+            message: "Failed to create patient",
+            error: "Invalid date of birth format",
+          });
+        }
+      }
+
+      // Handle contract.dateOfSigning if present
+      if (patientData.contract?.dateOfSigning) {
+        try {
+          const dateOfSigning = new Date(patientData.contract.dateOfSigning);
+          if (isNaN(dateOfSigning.getTime())) {
+            throw new Error("Invalid date of signing");
+          }
+          patientData.contract.dateOfSigning = dateOfSigning;
+        } catch (error) {
+          return res.status(400).json({
+            message: "Failed to create patient",
+            error: "Invalid date of signing format",
+          });
+        }
+      }
+
+      // Add timestamps
+      patientData.createdAt = new Date();
+      patientData.updatedAt = new Date();
+
+      // Parse JSON strings in FormData
+      Object.keys(patientData).forEach(key => {
+        if (typeof patientData[key] === 'string' && patientData[key].startsWith('{')) {
+          try {
+            patientData[key] = JSON.parse(patientData[key]);
+          } catch (e) {
+            // If it's not valid JSON, keep the original string
+          }
+        }
+      });
+
+      const [newPatient] = await db
+        .insert(patients)
+        .values(patientData)
+        .returning();
+
+      res.json(newPatient);
+    } catch (error: any) {
+      console.error("Error creating patient:", error);
+      res.status(500).json({
+        message: "Failed to create patient",
+        error: error.message,
+      });
+    }
+  });
+
+  app.put("/api/patients/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const patientId = parseInt(req.params.id);
+      const updateData: any = { ...req.body };
+
+      // Handle dateOfBirth if present
+      if (updateData.dateOfBirth) {
+        try {
+          const dateOfBirth = new Date(updateData.dateOfBirth);
+          if (isNaN(dateOfBirth.getTime())) {
+            throw new Error("Invalid date of birth");
+          }
+          updateData.dateOfBirth = dateOfBirth;
+        } catch (error) {
+          return res.status(400).json({
+            message: "Failed to update patient",
+            error: "Invalid date of birth format",
+          });
+        }
+      }
+
+      // Handle contract.dateOfSigning if present
+      if (updateData.contract?.dateOfSigning) {
+        try {
+          const dateOfSigning = new Date(updateData.contract.dateOfSigning);
+          if (isNaN(dateOfSigning.getTime())) {
+            throw new Error("Invalid date of signing");
+          }
+          updateData.contract.dateOfSigning = dateOfSigning;
+        } catch (error) {
+          return res.status(400).json({
+            message: "Failed to update patient",
+            error: "Invalid date of signing format",
+          });
+        }
+      }
+
+      // Update timestamp
+      updateData.updatedAt = new Date();
+
+      // Parse JSON strings in FormData
+      Object.keys(updateData).forEach(key => {
+        if (typeof updateData[key] === 'string' && updateData[key].startsWith('{')) {
+          try {
+            updateData[key] = JSON.parse(updateData[key]);
+          } catch (e) {
+            // If it's not valid JSON, keep the original string
+          }
+        }
+      });
+
+      const [updatedPatient] = await db
+        .update(patients)
+        .set(updateData)
+        .where(eq(patients.id, patientId))
+        .returning();
+
+      res.json(updatedPatient);
+    } catch (error: any) {
+      console.error("Error updating patient:", error);
+      res.status(500).json({
+        message: "Failed to update patient",
+        error: error.message,
+      });
+    }
+  });
+
   // Provider Schedule Routes
   app.get("/api/provider-schedules", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -208,71 +375,6 @@ export function registerRoutes(app: Express): Server {
     res.json(updatedAppointment);
   });
 
-
-  // Patient Profile Routes
-  app.get("/api/patients", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-    const allPatients = await db.select().from(patients);
-    res.json(allPatients);
-  });
-
-  app.get("/api/patients/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-    const [patient] = await db
-      .select()
-      .from(patients)
-      .where(eq(patients.id, parseInt(req.params.id)))
-      .limit(1);
-
-    if (!patient) {
-      return res.status(404).send("Patient not found");
-    }
-    res.json(patient);
-  });
-
-  app.post("/api/patients", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const patientData = {
-        ...req.body,
-        dateOfBirth: new Date(req.body.dateOfBirth),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const [newPatient] = await db
-        .insert(patients)
-        .values(patientData)
-        .returning();
-
-      res.json(newPatient);
-    } catch (error: any) {
-      console.error("Error creating patient:", error);
-      res.status(500).json({
-        message: "Failed to create patient",
-        error: error.message,
-      });
-    }
-  });
-
-  app.put("/api/patients/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-    const [updatedPatient] = await db
-      .update(patients)
-      .set(req.body)
-      .where(eq(patients.id, parseInt(req.params.id)))
-      .returning();
-    res.json(updatedPatient);
-  });
 
   // Insurance Details Routes
   app.get("/api/patients/:id/insurance", async (req, res) => {
