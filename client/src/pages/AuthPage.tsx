@@ -117,7 +117,12 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="role">Role</Label>
-                    <Select {...register("role", { required: true })}>
+                    <Select onValueChange={(value) => {
+                      const event = {
+                        target: { value, name: "role" }
+                      };
+                      register("role").onChange(event);
+                    }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select your role" />
                       </SelectTrigger>
@@ -141,7 +146,12 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="organizationType">Organization Type</Label>
-                        <Select {...register("organizationType", { required: true })}>
+                        <Select onValueChange={(value) => {
+                          const event = {
+                            target: { value, name: "organizationType" }
+                          };
+                          register("organizationType").onChange(event);
+                        }}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select organization type" />
                           </SelectTrigger>
