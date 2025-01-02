@@ -15,6 +15,7 @@ import { Search, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import PatientDetailsDialog from "../patients/PatientDetailsDialog";
+import { LoadingTransition } from "@/components/ui/LoadingTransition";
 
 export default function PatientList() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -54,40 +55,36 @@ export default function PatientList() {
           </div>
 
           <div className="overflow-auto max-h-[calc(50vh-12rem)]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Date of Birth</TableHead>
-                  <TableHead>Contact</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
+            <LoadingTransition isLoading={isLoading}>
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center">
-                      Loading...
-                    </TableCell>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Date of Birth</TableHead>
+                    <TableHead>Contact</TableHead>
                   </TableRow>
-                ) : filteredPatients?.map((patient) => (
-                  <TableRow
-                    key={patient.id}
-                    className="cursor-pointer hover:bg-muted"
-                    onClick={() => setSelectedPatient(patient)}
-                  >
-                    <TableCell>
-                      {patient.firstName} {patient.lastName}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(patient.dateOfBirth).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {patient.phone}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredPatients?.map((patient) => (
+                    <TableRow
+                      key={patient.id}
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => setSelectedPatient(patient)}
+                    >
+                      <TableCell>
+                        {patient.firstName} {patient.lastName}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(patient.dateOfBirth).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {patient.phone}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </LoadingTransition>
           </div>
         </CardContent>
       </Card>
