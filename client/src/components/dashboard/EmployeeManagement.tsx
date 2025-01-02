@@ -44,14 +44,14 @@ const employeeSchema = z.object({
   zipCode: z.string().min(1, "ZIP code is required"),
   city: z.string().min(1, "City is required"),
   profileImage: z.string().optional(),
-  hourlyRate: z.number().min(0, "Hourly rate must be positive"),
+  hourlyRate: z.number().min(0, "Hourly rate must be positive").optional().nullable(),
   monthlyFixedCosts: z.object({
-    healthInsurance: z.number().min(0).optional(),
-    socialSecurity: z.number().min(0).optional(),
-    pensionFund: z.number().min(0).optional(),
-    accidentInsurance: z.number().min(0).optional(),
-    familyAllowances: z.number().min(0).optional(),
-    otherExpenses: z.number().min(0).optional(),
+    healthInsurance: z.number().min(0).optional().nullable(),
+    socialSecurity: z.number().min(0).optional().nullable(),
+    pensionFund: z.number().min(0).optional().nullable(),
+    accidentInsurance: z.number().min(0).optional().nullable(),
+    familyAllowances: z.number().min(0).optional().nullable(),
+    otherExpenses: z.number().min(0).optional().nullable(),
   }).optional(),
   startDate: z.string(),
 });
@@ -65,7 +65,16 @@ export function EmployeeManagement() {
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
     defaultValues: {
-      monthlyFixedCosts: {},
+      monthlyFixedCosts: {
+        healthInsurance: null,
+        socialSecurity: null,
+        pensionFund: null,
+        accidentInsurance: null,
+        familyAllowances: null,
+        otherExpenses: null,
+      },
+      hourlyRate: null,
+      profileImage: undefined,
     },
   });
 
@@ -79,11 +88,20 @@ export function EmployeeManagement() {
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (data: EmployeeFormData) => {
+      // Clean up the data before sending
+      const cleanData = {
+        ...data,
+        hourlyRate: data.hourlyRate || 0,
+        monthlyFixedCosts: Object.fromEntries(
+          Object.entries(data.monthlyFixedCosts || {}).map(([key, value]) => [key, value || 0])
+        ),
+      };
+
       const response = await fetch("/api/organization/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...data,
+          ...cleanData,
           role: "spitex_employee", // Set role automatically
         }),
         credentials: "include",
@@ -210,17 +228,27 @@ export function EmployeeManagement() {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                if (file.size > 500000) { // 500KB limit
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Error",
+                                    description: "Image size should be less than 500KB",
+                                  });
+                                  return;
+                                }
                                 const reader = new FileReader();
                                 reader.onloadend = () => {
                                   field.onChange(reader.result as string);
                                 };
                                 reader.readAsDataURL(file);
+                              } else {
+                                field.onChange(undefined);
                               }
                             }}
                           />
                         </FormControl>
                         <FormDescription>
-                          Optional: Upload a profile picture
+                          Optional: Upload a profile picture (max 500KB)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -325,7 +353,10 @@ export function EmployeeManagement() {
                           <Input
                             type="number"
                             {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                            onChange={(e) => {
+                              const value = e.target.value ? parseFloat(e.target.value) : null;
+                              field.onChange(value);
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -374,7 +405,10 @@ export function EmployeeManagement() {
                             <Input
                               type="number"
                               {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseFloat(e.target.value) : null;
+                                field.onChange(value);
+                              }}
                             />
                           </FormControl>
                           <FormMessage />

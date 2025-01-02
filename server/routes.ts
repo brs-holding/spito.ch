@@ -25,12 +25,17 @@ import { eq, and, gte, lte, sql } from "drizzle-orm";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import express from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Increase payload size limit for base64 images
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Employee Management Routes for SPITEX Organizations
   app.get("/api/organization/employees", async (req, res) => {
@@ -103,10 +108,19 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
+      // Clean up optional numeric fields
+      const cleanedData = {
+        ...result.data,
+        hourlyRate: result.data.hourlyRate || 0,
+        monthlyFixedCosts: Object.fromEntries(
+          Object.entries(result.data.monthlyFixedCosts || {}).map(([key, value]) => [key, value || 0])
+        ),
+      };
+
       const [newEmployee] = await db
         .insert(users)
         .values({
-          ...result.data,
+          ...cleanedData,
           createdAt: new Date(),
           isActive: true,
         })
