@@ -2,8 +2,24 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { patients } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { 
+  patients, 
+  appointments,
+  providerSchedules,
+  users,
+  carePlans,
+  tasks,
+  progress,
+  healthMetrics,
+  medications,
+  medicationSchedules,
+  medicationAdherence,
+  insuranceDetails,
+  patientDocuments,
+  visitLogs,
+  videoSessions
+} from "@db/schema";
+import { eq, and, gte, lte } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -40,18 +56,18 @@ export function registerRoutes(app: Express): Server {
 
     try {
       const { 
-        first_name,
-        last_name,
-        date_of_birth,
+        firstName,
+        lastName,
+        dateOfBirth,
         gender,
         email,
         phone,
         address,
-        emergency_contact
+        emergencyContact
       } = req.body;
 
       // Validate required fields
-      if (!first_name || !last_name || !date_of_birth || !gender || !email || !phone || !address || !emergency_contact) {
+      if (!firstName || !lastName || !dateOfBirth || !gender || !email || !phone || !address || !emergencyContact) {
         return res.status(400).json({
           message: "Failed to create patient",
           error: "Missing required fields",
@@ -62,14 +78,14 @@ export function registerRoutes(app: Express): Server {
       const [newPatient] = await db
         .insert(patients)
         .values({
-          first_name,
-          last_name,
-          date_of_birth: new Date(date_of_birth),
+          first_name: firstName,
+          last_name: lastName,
+          date_of_birth: new Date(dateOfBirth),
           gender,
           email,
           phone,
           address,
-          emergency_contact,
+          emergency_contact: emergencyContact,
           created_at: new Date(),
           updated_at: new Date(),
         })
