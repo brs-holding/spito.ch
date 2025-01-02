@@ -5,7 +5,7 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, insertUserSchema, type User as SelectUser } from "@db/schema";
+import { users, organizations, insertUserSchema, insertOrganizationSchema, type User as SelectUser } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 
@@ -28,7 +28,6 @@ const crypto = {
   },
 };
 
-// extend express user object with our schema
 declare global {
   namespace Express {
     interface User extends SelectUser { }
@@ -43,7 +42,7 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     cookie: {},
     store: new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
+      checkPeriod: 86400000,
     }),
   };
 
@@ -107,7 +106,7 @@ export function setupAuth(app: Express) {
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { username, password, fullName } = result.data;
+      const { username, password, fullName, email, role, organizationName, organizationType } = result.data;
 
       // Check if user already exists
       const [existingUser] = await db
@@ -123,6 +122,31 @@ export function setupAuth(app: Express) {
       // Hash the password
       const hashedPassword = await crypto.hash(password);
 
+      let organizationId: number | undefined;
+
+      // Create organization if required
+      if ((role === "spitex_org" || role === "insurance") && organizationName && organizationType) {
+        const organizationResult = insertOrganizationSchema.safeParse({
+          name: organizationName,
+          type: organizationType,
+          subscriptionTier: "free_trial",
+          maxCaregivers: role === "spitex_org" ? 3 : undefined, // Default to 3 caregivers for SPITEX
+          address: {},
+          contactInfo: {}
+        });
+
+        if (!organizationResult.success) {
+          return res.status(400).send("Invalid organization data: " + organizationResult.error.issues.map(i => i.message).join(", "));
+        }
+
+        const [newOrg] = await db
+          .insert(organizations)
+          .values(organizationResult.data)
+          .returning();
+
+        organizationId = newOrg.id;
+      }
+
       // Create the new user
       const [newUser] = await db
         .insert(users)
@@ -130,6 +154,9 @@ export function setupAuth(app: Express) {
           username,
           password: hashedPassword,
           fullName,
+          email,
+          role,
+          organizationId,
         })
         .returning();
 
