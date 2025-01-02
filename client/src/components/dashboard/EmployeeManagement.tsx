@@ -42,7 +42,7 @@ const employeeSchema = z.object({
     accidentInsurance: z.number().min(0).optional(),
     familyAllowances: z.number().min(0).optional(),
     otherExpenses: z.number().min(0).optional(),
-  }),
+  }).optional(),
   startDate: z.string(),
 });
 
@@ -66,7 +66,10 @@ export function EmployeeManagement() {
       const response = await fetch("/api/organization/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          role: "spitex_employee", // Set role automatically
+        }),
         credentials: "include",
       });
 
@@ -100,7 +103,7 @@ export function EmployeeManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Employee Management</h2>
         <Dialog>
@@ -236,6 +239,8 @@ export function EmployeeManagement() {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Start Date</TableHead>
             <TableHead>Hours Worked</TableHead>
             <TableHead>Clients Managed</TableHead>
             <TableHead>Earnings Generated (CHF)</TableHead>
@@ -247,13 +252,13 @@ export function EmployeeManagement() {
           {employees?.map((employee) => (
             <TableRow key={employee.id}>
               <TableCell>{employee.fullName}</TableCell>
-              <TableCell>{employee.performance.hoursWorked.toFixed(1)}</TableCell>
-              <TableCell>{employee.performance.clientsManaged}</TableCell>
-              <TableCell>
-                {employee.performance.earningsGenerated.toFixed(2)}
-              </TableCell>
-              <TableCell>{employee.performance.costs.toFixed(2)}</TableCell>
-              <TableCell>{employee.performance.profit.toFixed(2)}</TableCell>
+              <TableCell>{employee.email}</TableCell>
+              <TableCell>{new Date(employee.startDate).toLocaleDateString()}</TableCell>
+              <TableCell>{employee.performance?.hoursWorked.toFixed(1) || '0.0'}</TableCell>
+              <TableCell>{employee.performance?.clientsManaged || 0}</TableCell>
+              <TableCell>{employee.performance?.earningsGenerated.toFixed(2) || '0.00'}</TableCell>
+              <TableCell>{employee.performance?.costs.toFixed(2) || '0.00'}</TableCell>
+              <TableCell>{employee.performance?.profit.toFixed(2) || '0.00'}</TableCell>
             </TableRow>
           ))}
         </TableBody>
