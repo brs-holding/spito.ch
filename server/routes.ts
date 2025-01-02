@@ -2,25 +2,212 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { 
-  patients, 
-  carePlans, 
-  tasks, 
-  progress, 
-  healthMetrics, 
+import {
+  patients,
+  appointments,
+  providerSchedules,
+  users,
+  carePlans,
+  tasks,
+  progress,
+  healthMetrics,
   medications,
   medicationSchedules,
   medicationAdherence,
-  appointments,
-  videoSessions,
   insuranceDetails,
   patientDocuments,
   visitLogs,
+  videoSessions,
 } from "@db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Provider Schedule Routes
+  app.get("/api/provider-schedules", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const schedules = await db
+        .select()
+        .from(providerSchedules)
+        .innerJoin(users, eq(providerSchedules.providerId, users.id))
+        .where(
+          and(
+            eq(users.role, "doctor"),
+            eq(providerSchedules.isAvailable, true)
+          )
+        );
+
+      res.json(schedules);
+    } catch (error: any) {
+      console.error("Error fetching provider schedules:", error);
+      res.status(500).json({
+        message: "Failed to fetch provider schedules",
+        error: error.message,
+      });
+    }
+  });
+
+  // Appointment Routes
+  app.get("/api/appointments", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const { date } = req.query;
+      let appointmentsList;
+
+      if (date) {
+        const startDate = new Date(date as string);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 1);
+
+        appointmentsList = await db
+          .select()
+          .from(appointments)
+          .where(
+            and(
+              gte(appointments.scheduledFor, startDate),
+              lte(appointments.scheduledFor, endDate)
+            )
+          );
+      } else if (req.user.role === "patient") {
+        const [patient] = await db
+          .select()
+          .from(patients)
+          .where(eq(patients.userId, req.user.id))
+          .limit(1);
+
+        if (!patient) {
+          return res.status(404).send("Patient profile not found");
+        }
+
+        appointmentsList = await db
+          .select()
+          .from(appointments)
+          .where(eq(appointments.patientId, patient.id));
+      } else {
+        appointmentsList = await db
+          .select()
+          .from(appointments)
+          .where(eq(appointments.providerId, req.user.id));
+      }
+
+      res.json(appointmentsList);
+    } catch (error: any) {
+      console.error("Error fetching appointments:", error);
+      res.status(500).json({
+        message: "Failed to fetch appointments",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/appointments", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      // Check for scheduling conflicts
+      const startTime = new Date(req.body.scheduledFor);
+      const endTime = new Date(startTime);
+      endTime.setMinutes(endTime.getMinutes() + req.body.duration);
+
+      const existingAppointments = await db
+        .select()
+        .from(appointments)
+        .where(
+          and(
+            gte(appointments.scheduledFor, startTime),
+            lte(appointments.scheduledFor, endTime)
+          )
+        );
+
+      if (existingAppointments.length > 0) {
+        return res.status(400).send("Time slot already booked");
+      }
+
+      // Get available provider
+      const [provider] = await db
+        .select()
+        .from(users)
+        .where(eq(users.role, "doctor"))
+        .limit(1);
+
+      if (!provider) {
+        return res.status(404).send("No providers available");
+      }
+
+      // Get patient profile
+      const [patient] = await db
+        .select()
+        .from(patients)
+        .where(eq(patients.userId, req.user.id))
+        .limit(1);
+
+      if (!patient) {
+        return res.status(404).send("Patient profile not found");
+      }
+
+      const appointmentData = {
+        ...req.body,
+        patientId: patient.id,
+        providerId: provider.id,
+        status: "scheduled",
+      };
+
+      const [newAppointment] = await db
+        .insert(appointments)
+        .values(appointmentData)
+        .returning();
+
+      res.json(newAppointment);
+    } catch (error: any) {
+      console.error("Error creating appointment:", error);
+      res.status(500).json({
+        message: "Failed to create appointment",
+        error: error.message,
+      });
+    }
+  });
+
+  app.patch("/api/appointments/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const { status } = req.body;
+    const appointmentId = parseInt(req.params.id);
+
+    const [appointment] = await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.id, appointmentId))
+      .limit(1);
+
+    if (!appointment) {
+      return res.status(404).send("Appointment not found");
+    }
+
+    if (req.user.role !== "patient" && appointment.providerId !== req.user.id) {
+      return res.status(403).send("Not authorized to update this appointment");
+    }
+
+    const [updatedAppointment] = await db
+      .update(appointments)
+      .set({ status })
+      .where(eq(appointments.id, appointmentId))
+      .returning();
+
+    res.json(updatedAppointment);
+  });
+
 
   // Patient Profile Routes
   app.get("/api/patients", async (req, res) => {
@@ -261,7 +448,7 @@ export function registerRoutes(app: Express): Server {
         )
       );
 
-    const medicationIds = schedules.map(schedule => schedule.medicationId);
+    const medicationIds = schedules.map((schedule) => schedule.medicationId);
     const medicationDetails = await db
       .select()
       .from(medications)
@@ -361,99 +548,6 @@ export function registerRoutes(app: Express): Server {
     res.json(newMetric[0]);
   });
 
-  // Appointment Routes
-  app.get("/api/appointments", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    let appointmentsList;
-    if (req.user.role === "patient") {
-      const [patient] = await db
-        .select()
-        .from(patients)
-        .where(eq(patients.userId, req.user.id))
-        .limit(1);
-
-      if (!patient) {
-        return res.status(404).send("Patient profile not found");
-      }
-
-      appointmentsList = await db
-        .select()
-        .from(appointments)
-        .where(eq(appointments.patientId, patient.id));
-    } else {
-      appointmentsList = await db
-        .select()
-        .from(appointments)
-        .where(eq(appointments.providerId, req.user.id));
-    }
-
-    res.json(appointmentsList);
-  });
-
-  app.post("/api/appointments", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    if (req.user.role === "patient") {
-      const [patient] = await db
-        .select()
-        .from(patients)
-        .where(eq(patients.userId, req.user.id))
-        .limit(1);
-
-      if (!patient) {
-        return res.status(404).send("Patient profile not found");
-      }
-
-      const newAppointment = await db
-        .insert(appointments)
-        .values({
-          ...req.body,
-          patientId: patient.id,
-        })
-        .returning();
-
-      res.json(newAppointment[0]);
-    } else {
-      return res.status(403).send("Only patients can book appointments");
-    }
-  });
-
-  app.patch("/api/appointments/:id/status", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    const { status } = req.body;
-    const appointmentId = parseInt(req.params.id);
-
-    const [appointment] = await db
-      .select()
-      .from(appointments)
-      .where(eq(appointments.id, appointmentId))
-      .limit(1);
-
-    if (!appointment) {
-      return res.status(404).send("Appointment not found");
-    }
-
-    if (req.user.role !== "patient" && appointment.providerId !== req.user.id) {
-      return res.status(403).send("Not authorized to update this appointment");
-    }
-
-    const [updatedAppointment] = await db
-      .update(appointments)
-      .set({ status })
-      .where(eq(appointments.id, appointmentId))
-      .returning();
-
-    res.json(updatedAppointment);
-  });
-
   // Video Session Routes
   app.post("/api/appointments/:id/session", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -497,7 +591,7 @@ export function registerRoutes(app: Express): Server {
 
     const [updatedSession] = await db
       .update(videoSessions)
-      .set({ 
+      .set({
         status,
         ...(status === "active" ? { startedAt: new Date() } : {}),
         ...(status === "ended" ? { endedAt: new Date() } : {}),

@@ -20,7 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarPlus, Video } from "lucide-react";
-import type { Appointment } from "@db/schema";
+import type { Appointment, ProviderSchedule } from "@db/schema";
 
 const APPOINTMENT_TYPES = [
   { value: "initial_consultation", label: "Initial Consultation" },
@@ -29,20 +29,77 @@ const APPOINTMENT_TYPES = [
   { value: "routine_checkup", label: "Routine Checkup" },
 ];
 
-const TIME_SLOTS = [
-  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
-];
-
 export default function AppointmentScheduler() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedType, setSelectedType] = useState<string>("");
   const [symptoms, setSymptoms] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch available providers and their schedules
+  const { data: providerSchedules, isLoading: isLoadingSchedules } = useQuery<ProviderSchedule[]>({
+    queryKey: ['/api/provider-schedules'],
+    enabled: !!selectedDate,
+  });
+
+  // Fetch existing appointments to check for conflicts
+  const { data: existingAppointments, isLoading: isLoadingAppointments } = useQuery<Appointment[]>({
+    queryKey: ['/api/appointments', selectedDate?.toISOString().split('T')[0]],
+    enabled: !!selectedDate,
+  });
+
+  // Get available time slots based on provider schedules and existing appointments
+  const getAvailableTimeSlots = () => {
+    if (!selectedDate || !providerSchedules || !existingAppointments) return [];
+
+    const dayOfWeek = selectedDate.getDay();
+    const daySchedules = providerSchedules.filter(
+      schedule => schedule.dayOfWeek === dayOfWeek && schedule.isAvailable
+    );
+
+    // Generate 30-minute slots within provider schedules
+    const availableSlots = daySchedules.flatMap(schedule => {
+      const slots: string[] = [];
+      const [startHour, startMinute] = schedule.startTime.split(':').map(Number);
+      const [endHour, endMinute] = schedule.endTime.split(':').map(Number);
+
+      let currentHour = startHour;
+      let currentMinute = startMinute;
+
+      while (
+        currentHour < endHour || 
+        (currentHour === endHour && currentMinute < endMinute)
+      ) {
+        slots.push(
+          `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`
+        );
+
+        currentMinute += 30;
+        if (currentMinute >= 60) {
+          currentHour += 1;
+          currentMinute = 0;
+        }
+      }
+
+      return slots;
+    });
+
+    // Remove slots that are already booked
+    const bookedSlots = existingAppointments
+      .filter(apt => {
+        const aptDate = new Date(apt.scheduledFor);
+        return aptDate.toDateString() === selectedDate.toDateString();
+      })
+      .map(apt => {
+        const aptDate = new Date(apt.scheduledFor);
+        return `${aptDate.getHours().toString().padStart(2, '0')}:${aptDate.getMinutes().toString().padStart(2, '0')}`;
+      });
+
+    return availableSlots.filter(slot => !bookedSlots.includes(slot));
+  };
 
   const bookAppointment = useMutation({
     mutationFn: async (appointmentData: Partial<Appointment>) => {
@@ -106,6 +163,8 @@ export default function AppointmentScheduler() {
     });
   };
 
+  const availableTimeSlots = getAvailableTimeSlots();
+
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
@@ -126,25 +185,47 @@ export default function AppointmentScheduler() {
               selected={selectedDate}
               onSelect={setSelectedDate}
               className="rounded-md border"
-              disabled={(date) => date < new Date() || date.getDay() === 0 || date.getDay() === 6}
+              disabled={(date) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const dayOfWeek = date.getDay();
+                return (
+                  date < today || // Can't book past dates
+                  dayOfWeek === 0 || // Sunday
+                  dayOfWeek === 6 // Saturday
+                );
+              }}
             />
           </div>
-          
+
           <div className="space-y-4">
             <div>
               <h3 className="font-medium mb-2">Select Time</h3>
-              <Select value={selectedTime} onValueChange={setSelectedTime}>
+              <Select 
+                value={selectedTime} 
+                onValueChange={setSelectedTime}
+                disabled={!selectedDate || isLoadingSchedules || isLoadingAppointments}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a time slot" />
+                  <SelectValue placeholder={
+                    isLoadingSchedules || isLoadingAppointments
+                      ? "Loading available times..."
+                      : "Choose a time slot"
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIME_SLOTS.map((time) => (
+                  {availableTimeSlots.map((time) => (
                     <SelectItem key={time} value={time}>
                       {time}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {availableTimeSlots.length === 0 && selectedDate && !isLoadingSchedules && !isLoadingAppointments && (
+                <p className="text-sm text-destructive mt-1">
+                  No available time slots for this date. Please select another date.
+                </p>
+              )}
             </div>
 
             <div>
@@ -176,10 +257,17 @@ export default function AppointmentScheduler() {
             <Button 
               className="w-full"
               onClick={handleSubmit}
-              disabled={!selectedDate || !selectedTime || !selectedType}
+              disabled={
+                !selectedDate || 
+                !selectedTime || 
+                !selectedType || 
+                bookAppointment.isPending || 
+                isLoadingSchedules || 
+                isLoadingAppointments
+              }
             >
               <Video className="h-4 w-4 mr-2" />
-              Book Telemedicine Appointment
+              {bookAppointment.isPending ? "Scheduling..." : "Book Telemedicine Appointment"}
             </Button>
           </div>
         </div>

@@ -169,6 +169,18 @@ export const appointments = pgTable("appointments", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Adding providerSchedules table after appointments table
+export const providerSchedules = pgTable("provider_schedules", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").references(() => users.id).notNull(),
+  dayOfWeek: integer("day_of_week").notNull(), // 0-6 for Sunday-Saturday
+  startTime: text("start_time").notNull(), // Format: "HH:mm"
+  endTime: text("end_time").notNull(), // Format: "HH:mm"
+  isAvailable: boolean("is_available").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const videoSessions = pgTable("video_sessions", {
   id: serial("id").primaryKey(),
   appointmentId: integer("appointment_id").references(() => appointments.id).notNull(),
@@ -211,6 +223,7 @@ export const userRelations = relations(users, ({ many, one }) => ({
     references: [patients.userId],
   }),
   providedAppointments: many(appointments, { relationName: "provider" }),
+  schedules: many(providerSchedules),
 }));
 
 export const patientRelations = relations(patients, ({ one, many }) => ({
@@ -282,6 +295,20 @@ export const visitLogsRelations = relations(visitLogs, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// Add relations
+export const providerSchedulesRelations = relations(providerSchedules, ({ one }) => ({
+  provider: one(users, {
+    fields: [providerSchedules.providerId],
+    references: [users.id],
+  }),
+}));
+
+// Add schemas for the new table
+export const insertProviderScheduleSchema = createInsertSchema(providerSchedules);
+export const selectProviderScheduleSchema = createSelectSchema(providerSchedules);
+export type ProviderSchedule = typeof providerSchedules.$inferSelect;
+
 
 // Update the schema validation
 export const insertUserSchema = createInsertSchema(users, {
