@@ -2,24 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import {
-  patients,
-  appointments,
-  providerSchedules,
-  users,
-  carePlans,
-  tasks,
-  progress,
-  healthMetrics,
-  medications,
-  medicationSchedules,
-  medicationAdherence,
-  insuranceDetails,
-  patientDocuments,
-  visitLogs,
-  videoSessions,
-} from "@db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { patients } from "@db/schema";
+import { eq } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -55,42 +39,40 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      // Process and validate dates
-      const patientData: any = {};
+      const { 
+        first_name,
+        last_name,
+        date_of_birth,
+        gender,
+        email,
+        phone,
+        address,
+        emergency_contact
+      } = req.body;
 
-      // Parse JSON strings in FormData
-      Object.keys(req.body).forEach(key => {
-        if (typeof req.body[key] === 'string' && req.body[key].startsWith('{')) {
-          try {
-            patientData[key] = JSON.parse(req.body[key]);
-          } catch (e) {
-            patientData[key] = req.body[key];
-          }
-        } else {
-          patientData[key] = req.body[key];
-        }
-      });
-
-      // Convert field names to database column names
-      if (patientData.firstName) patientData.first_name = patientData.firstName;
-      if (patientData.lastName) patientData.last_name = patientData.lastName;
-      if (patientData.dateOfBirth) {
-        const dateOfBirth = new Date(patientData.dateOfBirth);
-        if (isNaN(dateOfBirth.getTime())) {
-          throw new Error("Invalid date of birth");
-        }
-        patientData.date_of_birth = dateOfBirth;
+      // Validate required fields
+      if (!first_name || !last_name || !date_of_birth || !gender || !email || !phone || !address || !emergency_contact) {
+        return res.status(400).json({
+          message: "Failed to create patient",
+          error: "Missing required fields",
+        });
       }
 
-      // Add timestamps
-      patientData.created_at = new Date();
-      patientData.updated_at = new Date();
-
-      console.log("Creating patient with data:", patientData); // Debug log
-
+      // Create the patient record
       const [newPatient] = await db
         .insert(patients)
-        .values(patientData)
+        .values({
+          first_name,
+          last_name,
+          date_of_birth: new Date(date_of_birth),
+          gender,
+          email,
+          phone,
+          address,
+          emergency_contact,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
         .returning();
 
       res.json(newPatient);

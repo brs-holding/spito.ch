@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -15,7 +14,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -23,19 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  User,
-  Phone,
-  Mail,
-  Home,
-  Shield,
-  FileText,
-  Calendar,
-  AlertCircle,
-  Upload,
-  FileSignature,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 
 const addressSchema = z.object({
   street: z.string().min(1, "Street is required"),
@@ -50,839 +35,297 @@ const emergencyContactSchema = z.object({
   phone: z.string().min(1, "Phone number is required"),
 });
 
-const documentSchema = z.object({
-  healthInsurance: z.instanceof(File).optional(),
-  otherDocuments: z.array(z.instanceof(File)).default([]),
-});
-
-const contractSchema = z.object({
-  signature: z.string().min(1, "Signature is required"),
-  dateOfSigning: z.string().min(1, "Date of signing is required"),
-  termsAccepted: z.boolean().refine((val) => val === true, {
-    message: "You must accept the terms and conditions",
-  }),
-});
-
-const familyAccessItemSchema = z.object({
-  name: z.string(),
-  relationship: z.string(),
-  accessLevel: z.enum(["full", "limited", "emergency_only"]),
-});
-
 const patientFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  gender: z.enum(["male", "female", "other"]),
+  gender: z.enum(["male", "female", "other"], {
+    required_error: "Please select a gender",
+  }),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(1, "Phone number is required"),
   address: addressSchema,
   emergencyContact: emergencyContactSchema,
-  medicalHistory: z.string().optional(),
-  currentDiagnoses: z.array(z.string()).default([]),
-  allergies: z.array(z.string()).default([]),
-  primaryPhysicianContact: z.object({
-    name: z.string().min(1, "Physician name is required"),
-    phone: z.string().min(1, "Physician phone is required"),
-    email: z.string().email("Invalid email address").optional(),
-  }),
-  preferences: z.string().optional(),
-  familyAccess: z.array(familyAccessItemSchema).default([]),
-  documents: documentSchema,
-  contract: contractSchema,
 });
 
 type PatientFormValues = z.infer<typeof patientFormSchema>;
 
-const STEPS = [
-  { id: "basic", label: "Basic Info", icon: User },
-  { id: "medical", label: "Medical", icon: AlertCircle },
-  { id: "documents", label: "Documents", icon: Upload },
-  { id: "contract", label: "Contract", icon: FileSignature },
-  { id: "notes", label: "Notes", icon: FileText },
-];
-
 export default function PatientRegistrationForm() {
   const { toast } = useToast();
-  const [activeStep, setActiveStep] = useState(0);
-  const [patientId, setPatientId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientFormSchema),
     defaultValues: {
-      currentDiagnoses: [],
-      allergies: [],
-      familyAccess: [],
-      documents: {
-        otherDocuments: [],
+      address: {
+        street: "",
+        city: "",
+        state: "",
+        zipCode: "",
       },
-      contract: {
-        termsAccepted: false,
+      emergencyContact: {
+        name: "",
+        relationship: "",
+        phone: "",
       },
     },
   });
 
-  const saveStep = useMutation({
-    mutationFn: async (data: Partial<PatientFormValues> & { step: number }) => {
-      const { step, ...formData } = data;
-      const endpoint = patientId ? `/api/patients/${patientId}` : "/api/patients";
-      const method = patientId ? "PUT" : "POST";
-
+  const createPatient = useMutation({
+    mutationFn: async (data: PatientFormValues) => {
       try {
-        let processedData = { ...formData };
+        // Convert the data to match database field names
+        const formData = {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          date_of_birth: new Date(data.dateOfBirth).toISOString(),
+          gender: data.gender,
+          email: data.email,
+          phone: data.phone,
+          address: data.address,
+          emergency_contact: data.emergencyContact,
+        };
 
-        if (step === 0) {
-          // For basic info step, ensure all required fields are present
-          processedData = {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : undefined,
-            gender: formData.gender,
-            email: formData.email,
-            phone: formData.phone,
-            address: formData.address,
-            emergencyContact: formData.emergencyContact,
-          };
-        } else if (step === 1) {
-          // For medical info step
-          processedData = {
-            medicalHistory: formData.medicalHistory,
-            currentDiagnoses: Array.isArray(formData.currentDiagnoses)
-              ? formData.currentDiagnoses
-              : String(formData.currentDiagnoses || '').split(',').map(item => item.trim()).filter(Boolean),
-            allergies: Array.isArray(formData.allergies)
-              ? formData.allergies
-              : String(formData.allergies || '').split(',').map(item => item.trim()).filter(Boolean),
-            primaryPhysicianContact: formData.primaryPhysicianContact,
-          };
-        } else if (step === 2) {
-          // For documents step
-          processedData = {
-            documents: formData.documents,
-          };
-        } else if (step === 3) {
-          // For contract step
-          processedData = {
-            contract: {
-              ...formData.contract,
-              dateOfSigning: formData.contract?.dateOfSigning
-                ? new Date(formData.contract.dateOfSigning).toISOString()
-                : undefined,
-            },
-          };
-        }
-
-        // Convert processedData to FormData
-        const fd = new FormData();
-        Object.entries(processedData).forEach(([key, value]) => {
-          if (value !== undefined) {
-            if (key === 'documents') {
-              const docs = value as { healthInsurance?: File, otherDocuments: File[] };
-              if (docs.healthInsurance) {
-                fd.append('healthInsurance', docs.healthInsurance);
-              }
-              if (docs.otherDocuments?.length) {
-                docs.otherDocuments.forEach(file => {
-                  fd.append('otherDocuments', file);
-                });
-              }
-            } else if (typeof value === 'object' && value !== null && !(value instanceof File)) {
-              fd.append(key, JSON.stringify(value));
-            } else {
-              fd.append(key, String(value));
-            }
-          }
-        });
-
-        const response = await fetch(endpoint, {
-          method,
-          body: fd,
+        const response = await fetch("/api/patients", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
           credentials: "include",
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to save patient data');
+          throw new Error(errorData.message || "Failed to create patient");
         }
 
-        return await response.json();
+        return response.json();
       } catch (error) {
-        console.error("Error saving step:", error);
+        console.error("Error creating patient:", error);
         throw error;
       }
     },
-    onSuccess: (data) => {
-      if (!patientId) {
-        setPatientId(data.id);
-      }
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Success",
-        description: "Progress saved successfully",
+        description: "Patient registered successfully",
       });
+      form.reset();
     },
     onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to save progress",
+        description: error.message || "Failed to register patient",
       });
     },
   });
 
-  const isStepValid = async (step: number) => {
-    const fields = getFieldsForStep(step);
-    const result = await form.trigger(fields as any);
-    return result;
-  };
-
-  const getFieldsForStep = (step: number) => {
-    switch (step) {
-      case 0:
-        return [
-          "firstName",
-          "lastName",
-          "dateOfBirth",
-          "gender",
-          "email",
-          "phone",
-          "address.street",
-          "address.city",
-          "address.state",
-          "address.zipCode",
-          "emergencyContact.name",
-          "emergencyContact.relationship",
-          "emergencyContact.phone",
-        ];
-      case 1:
-        return [
-          "medicalHistory",
-          "currentDiagnoses",
-          "allergies",
-          "primaryPhysicianContact.name",
-          "primaryPhysicianContact.phone",
-          "primaryPhysicianContact.email",
-        ];
-      case 2:
-        return ["documents.healthInsurance", "documents.otherDocuments"];
-      case 3:
-        return ["contract.signature", "contract.dateOfSigning", "contract.termsAccepted"];
-      case 4:
-        return ["preferences", "familyAccess"];
-      default:
-        return [];
-    }
-  };
-
-  const handleNext = async () => {
-    const isValid = await isStepValid(activeStep);
-    if (isValid) {
-      const stepFields = getFieldsForStep(activeStep);
-      const stepData = {};
-
-      // Correctly extract nested fields
-      stepFields.forEach(field => {
-        const parts = field.split('.');
-        const value = form.getValues(field as any);
-
-        if (parts.length === 1) {
-          stepData[field] = value;
-        } else {
-          // Handle nested fields like address.street
-          const [parent, child] = parts;
-          stepData[parent] = stepData[parent] || {};
-          stepData[parent][child] = value;
-        }
-      });
-
-      try {
-        await saveStep.mutateAsync({ ...stepData, step: activeStep });
-        setActiveStep((prev) => Math.min(prev + 1, STEPS.length - 1));
-      } catch (error) {
-        console.error("Error saving step:", error);
-      }
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Please fill in all required fields before proceeding.",
-      });
-    }
-  };
-
-  const handleBack = () => {
-    setActiveStep((prev) => Math.max(prev - 1, 0));
-  };
-
   async function onSubmit(data: PatientFormValues) {
-    try {
-      await saveStep.mutateAsync({
-        preferences: data.preferences,
-        familyAccess: data.familyAccess,
-        step: activeStep
-      });
-
-      form.reset();
-      setActiveStep(0);
-      setPatientId(null);
-
-      toast({
-        title: "Success",
-        description: "Patient registration completed successfully",
-      });
-    } catch (error) {
-      console.error("Error submitting form:", error);
-    }
+    await createPatient.mutateAsync(data);
   }
-
-  const renderStepContent = (step: number) => {
-    switch (step) {
-      case 0:
-        return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="dateOfBirth"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date of Birth</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="gender"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gender</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input type="tel" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Address</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="address.street"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Street</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="address.city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="address.state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="address.zipCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ZIP Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Emergency Contact</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="emergencyContact.name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="emergencyContact.relationship"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Relationship</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="emergencyContact.phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input type="tel" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      case 1:
-        return (
-          <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="medicalHistory"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Medical History</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="currentDiagnoses"
-              render={({ field: { onChange, ...field } }) => (
-                <FormItem>
-                  <FormLabel>Current Diagnoses</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      onChange={(e) => {
-                        onChange(e.target.value);
-                        const diagnoses = e.target.value
-                          .split(',')
-                          .map(item => item.trim())
-                          .filter(Boolean);
-                        form.setValue('currentDiagnoses', diagnoses);
-                      }}
-                      placeholder="Enter diagnoses, separated by commas (e.g., Diabetes, Hypertension)"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="allergies"
-              render={({ field: { onChange, ...field } }) => (
-                <FormItem>
-                  <FormLabel>Allergies</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      onChange={(e) => {
-                        onChange(e.target.value);
-                        const allergies = e.target.value
-                          .split(',')
-                          .map(item => item.trim())
-                          .filter(Boolean);
-                        form.setValue('allergies', allergies);
-                      }}
-                      placeholder="Enter allergies, separated by commas (e.g., Penicillin, Peanuts)"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Primary Physician</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="primaryPhysicianContact.name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="primaryPhysicianContact.phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input type="tel" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="primaryPhysicianContact.email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-4">
-            <Card>
-              <CardContent className="pt-6">
-                <FormField
-                  control={form.control}
-                  name="documents.healthInsurance"
-                  render={({ field: { value, onChange, ...field } }) => (
-                    <FormItem>
-                      <FormLabel>Health Insurance Document</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="file"
-                          accept="application/pdf,image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              onChange(file);
-                            }
-                          }}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        );
-      case 3:
-        return (
-          <div className="space-y-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="prose max-w-none mb-6">
-                  <h3>Terms and Conditions</h3>
-                  <p>
-                    By signing this contract, you agree to the following terms:
-                  </p>
-                  {/* Add your terms and conditions text here */}
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="contract.signature"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Digital Signature</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Type your full name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="contract.dateOfSigning"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date of Signing</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="contract.termsAccepted"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 mt-4">
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          I accept the terms and conditions
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        );
-      case 4:
-        return (
-          <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="preferences"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Care Preferences</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      placeholder="Enter care preferences..."
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Family Access</h3>
-              <div className="space-y-4">
-                {form.watch("familyAccess").map((_, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`familyAccess.${index}.name`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Name</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`familyAccess.${index}.relationship`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Relationship</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`familyAccess.${index}.accessLevel`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Access Level</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select access level" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="full">Full Access</SelectItem>
-                              <SelectItem value="limited">Limited Access</SelectItem>
-                              <SelectItem value="emergency_only">Emergency Only</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    const currentFamilyAccess = form.getValues("familyAccess");
-                    form.setValue("familyAccess", [
-                      ...currentFamilyAccess,
-                      { name: "", relationship: "", accessLevel: "limited" }
-                    ]);
-                  }}
-                >
-                  Add Family Member
-                </Button>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <Tabs value={STEPS[activeStep].id} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            {STEPS.map((step, index) => (
-              <TabsTrigger
-                key={step.id}
-                value={step.id}
-                disabled={index !== activeStep}
-                className="data-[state=active]:bg-primary"
-              >
-                <step.icon className="h-4 w-4 mr-2" />
-                {step.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <div className="mt-6">
-            {renderStepContent(activeStep)}
-          </div>
-        </Tabs>
-
-        <div className="flex justify-between space-x-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleBack}
-            disabled={activeStep === 0}
-          >
-            Back
-          </Button>
-
-          {activeStep === STEPS.length - 1 ? (
-            <Button type="submit" disabled={saveStep.isPending}>
-              {saveStep.isPending ? "Registering..." : "Register Patient"}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={handleNext}
-              disabled={saveStep.isPending}
-            >
-              {saveStep.isPending ? "Saving..." : "Next"}
-            </Button>
-          )}
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="firstName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>First Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="lastName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Last Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="dateOfBirth"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Date of Birth</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="gender"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Gender</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input type="email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone</FormLabel>
+                <FormControl>
+                  <Input type="tel" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Address</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="address.street"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Street</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="address.city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="address.state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>State</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="address.zipCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ZIP Code</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Emergency Contact</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="emergencyContact.name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="emergencyContact.relationship"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Relationship</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="emergencyContact.phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone</FormLabel>
+                  <FormControl>
+                    <Input type="tel" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <Button type="submit" disabled={createPatient.isPending}>
+          {createPatient.isPending ? "Registering..." : "Register Patient"}
+        </Button>
       </form>
     </Form>
   );
