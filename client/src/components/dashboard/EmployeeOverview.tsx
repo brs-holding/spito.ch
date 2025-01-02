@@ -13,18 +13,18 @@ export default function EmployeeOverview() {
   const activeEmployees = employees.filter((emp: any) => emp.isActive).length;
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Employee Overview</h2>
+    <div className="space-y-4 px-4 sm:px-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
+        <h2 className="text-xl sm:text-2xl font-bold">Employee Overview</h2>
         <Button 
           onClick={() => setLocation("/employees")}
-          className="flex items-center gap-2"
+          className="w-full sm:w-auto flex items-center justify-center gap-2"
         >
           <UserPlus className="h-4 w-4" />
           Add Employee
         </Button>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Employees</CardTitle>

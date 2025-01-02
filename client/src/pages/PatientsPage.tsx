@@ -17,23 +17,23 @@ export default function PatientsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-4 sm:py-6 px-4 sm:px-6">
       <Card>
         <CardHeader>
-          <CardTitle>Patients</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">Patients</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
             {patients?.map((patient) => (
-              <Card key={patient.id}>
+              <Card key={patient.id} className="hover:bg-accent/5 transition-colors">
                 <CardContent className="p-4">
-                  <h3 className="font-semibold">
+                  <h3 className="font-semibold text-base sm:text-lg">
                     {patient.firstName} {patient.lastName}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     {new Date(patient.dateOfBirth).toLocaleDateString()}
                   </p>
-                  <p className="text-sm">{patient.email}</p>
+                  <p className="text-xs sm:text-sm mt-1">{patient.email}</p>
                 </CardContent>
               </Card>
             ))}
