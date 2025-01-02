@@ -411,7 +411,7 @@ export function registerRoutes(app: Express): Server {
 
       // Filter tasks based on user role and relationships
       if (req.user.role === "spitex_employee") {
-        // Employees see tasks assigned to them
+        // Employees see tasks assigned to them within their organization
         tasksQuery = db
           .select({
             id: tasks.id,
@@ -427,7 +427,13 @@ export function registerRoutes(app: Express): Server {
           })
           .from(tasks)
           .innerJoin(taskAssignments, eq(tasks.id, taskAssignments.taskId))
-          .where(eq(taskAssignments.assignedToId, req.user.id));
+          .innerJoin(users, eq(tasks.createdById, users.id))
+          .where(
+            and(
+              eq(taskAssignments.assignedToId, req.user.id),
+              eq(users.organizationId, req.user.organizationId!)
+            )
+          );
       } else if (req.user.role === "spitex_org") {
         // Organizations see tasks within their organization
         tasksQuery = db
@@ -435,9 +441,6 @@ export function registerRoutes(app: Express): Server {
           .from(tasks)
           .innerJoin(users, eq(tasks.createdById, users.id))
           .where(eq(users.organizationId, req.user.organizationId!));
-      } else if (req.user.role === "super_admin") {
-        // Super admins see all tasks
-        tasksQuery = db.select().from(tasks);
       } else {
         return res.status(403).send("Not authorized to view tasks");
       }
@@ -656,7 +659,7 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      let query = db.select().from(patients);
+      let query;
 
       // Filter patients based on user role and organization
       if (req.user.role === "spitex_org" || req.user.role === "spitex_employee") {
@@ -679,13 +682,9 @@ export function registerRoutes(app: Express): Server {
             createdAt: patients.createdAt,
             updatedAt: patients.updatedAt,
           })
-          .from(patients);
-      } else if (req.user.role === "patient") {
-        // Patients can only see their own data
-        query = db
-          .select()
           .from(patients)
-          .where(eq(patients.userId, req.user.id));
+          .innerJoin(users, eq(patients.userId, users.id))
+          .where(eq(users.organizationId, req.user.organizationId!));
       } else {
         // Other roles are not authorized to view patient data
         return res.status(403).send("Not authorized to view patient data");
@@ -1016,7 +1015,7 @@ export function registerRoutes(app: Express): Server {
 
   //// Progress
   app.get("/api/progress/:carePlanId", async(req, res) => {
-        if (!req.isAuthenticated()) {
+        if (!req.isAuthenticated) {
       return res.status(401).send("Not authenticated");
     }
     const carePlanProgress = await db
