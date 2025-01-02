@@ -20,6 +20,7 @@ import {
   videoSessions,
 } from "@db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
+import path from 'path'; // Import path module
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -346,6 +347,71 @@ export function registerRoutes(app: Express): Server {
       console.error("Error uploading document:", error);
       res.status(500).json({
         message: "Failed to upload document",
+        error: error.message,
+      });
+    }
+  });
+
+  //NEW ROUTES ADDED HERE
+  app.get("/api/documents/:id/preview", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const documentId = parseInt(req.params.id);
+      const [document] = await db
+        .select()
+        .from(patientDocuments)
+        .where(eq(patientDocuments.id, documentId))
+        .limit(1);
+
+      if (!document) {
+        return res.status(404).send("Document not found");
+      }
+
+      // For now, we'll send a sample PDF file
+      // In production, you would fetch the actual file from your storage service
+      const samplePdfPath = path.join(__dirname, "../sample.pdf");
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline; filename=document.pdf');
+      res.sendFile(samplePdfPath);
+    } catch (error: any) {
+      console.error("Error previewing document:", error);
+      res.status(500).json({
+        message: "Failed to preview document",
+        error: error.message,
+      });
+    }
+  });
+
+  app.get("/api/documents/:id/download", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const documentId = parseInt(req.params.id);
+      const [document] = await db
+        .select()
+        .from(patientDocuments)
+        .where(eq(patientDocuments.id, documentId))
+        .limit(1);
+
+      if (!document) {
+        return res.status(404).send("Document not found");
+      }
+
+      // For now, we'll send a sample PDF file
+      // In production, you would fetch the actual file from your storage service
+      const samplePdfPath = path.join(__dirname, "../sample.pdf");
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename=document.pdf');
+      res.sendFile(samplePdfPath);
+    } catch (error: any) {
+      console.error("Error downloading document:", error);
+      res.status(500).json({
+        message: "Failed to download document",
         error: error.message,
       });
     }
