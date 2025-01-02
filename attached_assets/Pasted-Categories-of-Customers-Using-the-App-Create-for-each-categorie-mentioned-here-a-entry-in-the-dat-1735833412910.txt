@@ -1,0 +1,68 @@
+Categories of Customers Using the App
+
+Create for each categorie mentioned here a entry in the database. 
+Register function need to be able to chose the users. 
+
+
+1 Super Admin - can see everything. 
+
+Paying Users
+
+1. SPITEX Organizations
+Description: Professional SPITEX service providers offering home-based medical and personal care across Switzerland.
+Features Available:
+Comprehensive client and care management. Can only see it's own customers. 
+Advanced scheduling and routing for caregivers.
+Time tracking and patient history documentation.
+Automated billing and payroll processes aligned with Swiss healthcare standards.
+Integration with insurance invoicing (e.g., Krankenkasse).
+Reporting and compliance tools for regulatory requirements.
+Hierarchical management with sub-users (employees).
+Data Visibility:
+Admin and Super Admin can view all data.
+
+1.1 Employee of Spitex Organisation
+SUB USER OF SPITEX ORGANISATION can be created only in the dashboard
+Sub-users can only access their own data and assigned tasks.
+Payment Model: Subscription-based pricing, tiered by organization size (number of caregivers or patients).
+
+
+30 days free use. After 99 CHF per month (up to 3 caregivers)
+Each additional caregiver is 19.90 CHF - 1 caregiver 20 CHF
+Professional 199 CHF (up to 10 caregivers)
+Entreprise 299 CHF (from 10 caregivers)
+
+
+2. Freelance SPITEX Caregivers
+Description: Independent caregivers providing SPITEX services to individual clients.
+Features Available:
+Patient profiles, basic scheduling, and care documentation.
+Billing and invoicing tools for direct client interactions.
+Time tracking for precise service records.
+Data Visibility:
+Data is only visible to the caregiver who inputs it and the Super Admin.
+Payment Model: 30 days free use. After 99 CHF per month
+
+
+3. Insurance Companies (Krankenkasse)
+
+Description: Swiss insurance companies managing claims and reimbursement for SPITEX services.
+Features Available:
+Integration with SPITEX billing and invoicing systems.
+Automatic email notifications when a bill is created.
+Real-time access to service records for claims processing.
+Reporting tools for audits and compliance.
+Data Visibility:
+Access to billing-related data shared by SPITEX providers.
+Payment Model: Enterprise-level subscription or per-claim model.
+Free Users
+
+
+1. Family Members/Clients
+Description: Families or individual clients using SPITEX services, tracking care plans and history.
+Features Available:
+View-only access to patient care plans, schedules, caregiver notes, and invoices.
+Notifications for upcoming visits or updates.
+Data Visibility:
+Access to their own or their family member's records as shared by SPITEX providers.
+Limitations: No editing or advanced features.

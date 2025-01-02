@@ -3,12 +3,43 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
+// Updated roles enum to include all user types
+export const userRoles = [
+  "super_admin",
+  "spitex_org",
+  "spitex_employee",
+  "freelancer",
+  "insurance",
+  "family_member",
+  "patient"
+] as const;
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique(),  
   password: text("password").notNull(),
-  role: text("role", { enum: ["doctor", "nurse", "admin", "patient"] }).notNull().default("nurse"),
-  fullName: text("full_name").notNull().default(''),
+  role: text("role", { enum: userRoles }).notNull().default("family_member"),
+  fullName: text("full_name").notNull(),
+  organizationId: integer("organization_id"), // Reference to organizations table
+  email: text("email").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+});
+
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type", { enum: ["spitex", "insurance"] }).notNull(),
+  subscriptionTier: text("subscription_tier", { 
+    enum: ["free_trial", "basic", "professional", "enterprise"] 
+  }).notNull().default("free_trial"),
+  subscriptionStartDate: timestamp("subscription_start_date"),
+  subscriptionEndDate: timestamp("subscription_end_date"),
+  maxCaregivers: integer("max_caregivers"),
+  address: jsonb("address"),
+  contactInfo: jsonb("contact_info"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const patients = pgTable("patients", {
@@ -220,6 +251,10 @@ export const userRelations = relations(users, ({ many, one }) => ({
     fields: [users.id],
     references: [patients.userId],
   }),
+  organization: one(organizations, {
+    fields: [users.organizationId],
+    references: [organizations.id],
+  }),
   providedAppointments: many(appointments, { relationName: "provider" }),
   schedules: many(providerSchedules),
 }));
@@ -301,16 +336,22 @@ export const providerSchedulesRelations = relations(providerSchedules, ({ one })
   }),
 }));
 
+export const organizationRelations = relations(organizations, ({ many }) => ({
+  users: many(users),
+}));
+
+
 export const insertProviderScheduleSchema = createInsertSchema(providerSchedules);
 export const selectProviderScheduleSchema = createSelectSchema(providerSchedules);
 export type ProviderSchedule = typeof providerSchedules.$inferSelect;
 
-
 export const insertUserSchema = createInsertSchema(users, {
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
-  role: z.enum(["doctor", "nurse", "admin", "patient"]).optional(),
-  fullName: z.string().optional(),
+  role: z.enum(userRoles),
+  fullName: z.string().min(1, "Full name is required"),
+  email: z.string().email("Valid email is required"),
+  organizationId: z.number().optional(),
 });
 
 export const selectUserSchema = createSelectSchema(users);
@@ -356,6 +397,9 @@ export const selectPatientDocumentSchema = createSelectSchema(patientDocuments);
 export const insertVisitLogSchema = createInsertSchema(visitLogs);
 export const selectVisitLogSchema = createSelectSchema(visitLogs);
 
+export const insertOrganizationSchema = createInsertSchema(organizations);
+export const selectOrganizationSchema = createSelectSchema(organizations);
+
 export type Patient = typeof patients.$inferSelect;
 export type CarePlan = typeof carePlans.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
@@ -369,3 +413,5 @@ export type VideoSession = typeof videoSessions.$inferSelect;
 export type InsuranceDetails = typeof insuranceDetails.$inferSelect;
 export type PatientDocument = typeof patientDocuments.$inferSelect;
 export type VisitLog = typeof visitLogs.$inferSelect;
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = typeof organizations.$inferInsert;
