@@ -20,7 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarPlus, Video } from "lucide-react";
-import type { Appointment, ProviderSchedule } from "@db/schema";
+import type { Appointment, Patient, ProviderSchedule } from "@db/schema";
 
 const APPOINTMENT_TYPES = [
   { value: "initial_consultation", label: "Initial Consultation" },
@@ -29,7 +29,11 @@ const APPOINTMENT_TYPES = [
   { value: "routine_checkup", label: "Routine Checkup" },
 ];
 
-export default function AppointmentScheduler() {
+interface AppointmentSchedulerProps {
+  patient?: Patient;
+}
+
+export default function AppointmentScheduler({ patient }: AppointmentSchedulerProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedType, setSelectedType] = useState<string>("");
@@ -160,10 +164,113 @@ export default function AppointmentScheduler() {
       type: selectedType as any,
       symptoms,
       duration: 30, // Default duration in minutes
+      patientId: patient?.id, // Add patient ID if provided
     });
   };
 
   const availableTimeSlots = getAvailableTimeSlots();
+
+  // If rendered within the patient details dialog, don't show the dialog wrapper
+  const content = (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+      <div>
+        <h3 className="font-medium mb-2">Select Date</h3>
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={setSelectedDate}
+          className="rounded-md border"
+          disabled={(date) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dayOfWeek = date.getDay();
+            return (
+              date < today || // Can't book past dates
+              dayOfWeek === 0 || // Sunday
+              dayOfWeek === 6 // Saturday
+            );
+          }}
+        />
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <h3 className="font-medium mb-2">Select Time</h3>
+          <Select 
+            value={selectedTime} 
+            onValueChange={setSelectedTime}
+            disabled={!selectedDate || isLoadingSchedules || isLoadingAppointments}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={
+                isLoadingSchedules || isLoadingAppointments
+                  ? "Loading available times..."
+                  : "Choose a time slot"
+              } />
+            </SelectTrigger>
+            <SelectContent>
+              {availableTimeSlots.map((time) => (
+                <SelectItem key={time} value={time}>
+                  {time}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {availableTimeSlots.length === 0 && selectedDate && !isLoadingSchedules && !isLoadingAppointments && (
+            <p className="text-sm text-destructive mt-1">
+              No available time slots for this date. Please select another date.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <h3 className="font-medium mb-2">Appointment Type</h3>
+          <Select value={selectedType} onValueChange={setSelectedType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select appointment type" />
+            </SelectTrigger>
+            <SelectContent>
+              {APPOINTMENT_TYPES.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <h3 className="font-medium mb-2">Symptoms or Concerns</h3>
+          <Textarea
+            value={symptoms}
+            onChange={(e) => setSymptoms(e.target.value)}
+            placeholder="Please describe your symptoms or concerns..."
+            className="min-h-[100px]"
+          />
+        </div>
+
+        <Button 
+          className="w-full"
+          onClick={handleSubmit}
+          disabled={
+            !selectedDate || 
+            !selectedTime || 
+            !selectedType || 
+            bookAppointment.isPending || 
+            isLoadingSchedules || 
+            isLoadingAppointments
+          }
+        >
+          <Video className="h-4 w-4 mr-2" />
+          {bookAppointment.isPending ? "Scheduling..." : "Book Telemedicine Appointment"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  if (patient) {
+    return content;
+  }
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -177,100 +284,7 @@ export default function AppointmentScheduler() {
         <DialogHeader>
           <DialogTitle>Schedule a Telemedicine Appointment</DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          <div>
-            <h3 className="font-medium mb-2">Select Date</h3>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              className="rounded-md border"
-              disabled={(date) => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const dayOfWeek = date.getDay();
-                return (
-                  date < today || // Can't book past dates
-                  dayOfWeek === 0 || // Sunday
-                  dayOfWeek === 6 // Saturday
-                );
-              }}
-            />
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium mb-2">Select Time</h3>
-              <Select 
-                value={selectedTime} 
-                onValueChange={setSelectedTime}
-                disabled={!selectedDate || isLoadingSchedules || isLoadingAppointments}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={
-                    isLoadingSchedules || isLoadingAppointments
-                      ? "Loading available times..."
-                      : "Choose a time slot"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTimeSlots.map((time) => (
-                    <SelectItem key={time} value={time}>
-                      {time}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {availableTimeSlots.length === 0 && selectedDate && !isLoadingSchedules && !isLoadingAppointments && (
-                <p className="text-sm text-destructive mt-1">
-                  No available time slots for this date. Please select another date.
-                </p>
-              )}
-            </div>
-
-            <div>
-              <h3 className="font-medium mb-2">Appointment Type</h3>
-              <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select appointment type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {APPOINTMENT_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <h3 className="font-medium mb-2">Symptoms or Concerns</h3>
-              <Textarea
-                value={symptoms}
-                onChange={(e) => setSymptoms(e.target.value)}
-                placeholder="Please describe your symptoms or concerns..."
-                className="min-h-[100px]"
-              />
-            </div>
-
-            <Button 
-              className="w-full"
-              onClick={handleSubmit}
-              disabled={
-                !selectedDate || 
-                !selectedTime || 
-                !selectedType || 
-                bookAppointment.isPending || 
-                isLoadingSchedules || 
-                isLoadingAppointments
-              }
-            >
-              <Video className="h-4 w-4 mr-2" />
-              {bookAppointment.isPending ? "Scheduling..." : "Book Telemedicine Appointment"}
-            </Button>
-          </div>
-        </div>
+        {content}
       </DialogContent>
     </Dialog>
   );
