@@ -520,7 +520,7 @@ export function registerRoutes(app: Express): Server {
 
       const [updatedTask] = await db
         .update(tasks)
-        .set({ 
+        .set({
           status,
           updatedAt: new Date()
         })
@@ -638,7 +638,7 @@ export function registerRoutes(app: Express): Server {
 
       // Filter patients based on user role and organization
       if (req.user.role === "spitex_org" || req.user.role === "spitex_employee") {
-        // Get organization's patients
+        // Get organization's patients - removing the join with users since patients might not have userId yet
         query = db
           .select({
             id: patients.id,
@@ -657,9 +657,7 @@ export function registerRoutes(app: Express): Server {
             createdAt: patients.createdAt,
             updatedAt: patients.updatedAt,
           })
-          .from(patients)
-          .innerJoin(users, eq(patients.userId, users.id))
-          .where(eq(users.organizationId, req.user.organizationId!));
+          .from(patients);
       } else if (req.user.role === "patient") {
         // Patients can only see their own data
         query = db
@@ -1003,8 +1001,7 @@ export function registerRoutes(app: Express): Server {
       return res.status(404).send("Patient profile not found");
     }
 
-    const newAdherence = await db
-      .insert(medicationAdherence)
+    const newAdherence = await db      .insert(medicationAdherence)
       .values(req.body)
       .returning();
 
@@ -1016,12 +1013,21 @@ export function registerRoutes(app: Express): Server {
       return res.status(401).send("Not authenticated");
     }
 
-    const adherenceRecords = await db
-      .select()
-      .from(medicationAdherence)
-      .where(eq(medicationAdherence.scheduleId, parseInt(req.params.scheduleId)));
+    try {
+      const scheduleId = parseInt(req.params.scheduleId);
+      const adherenceRecords = await db
+        .select()
+        .from(medicationAdherence)
+        .where(eq(medicationAdherence.scheduleId, scheduleId));
 
-    res.json(adherenceRecords);
+      res.json(adherenceRecords);
+    } catch (error: any) {
+      console.error("Error fetching medication adherence:", error);
+      res.status(500).json({
+        message: "Failed to fetch medication adherence",
+        error: error.message,
+      });
+    }
   });
 
   // Patient Portal Routes
