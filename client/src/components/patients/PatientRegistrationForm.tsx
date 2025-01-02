@@ -126,51 +126,63 @@ export default function PatientRegistrationForm() {
     mutationFn: async (data: PatientFormValues) => {
       const formData = new FormData();
 
-      // Convert comma-separated strings to arrays for diagnoses and allergies
-      const processedData = {
-        ...data,
-        dateOfBirth: new Date(data.dateOfBirth).toISOString().split('T')[0],
-        contract: {
-          ...data.contract,
-          dateOfSigning: new Date(data.contract.dateOfSigning).toISOString().split('T')[0]
-        },
-        currentDiagnoses: data.currentDiagnoses
-          ? String(data.currentDiagnoses).split(',').map(item => item.trim()).filter(Boolean)
-          : [],
-        allergies: data.allergies
-          ? String(data.allergies).split(',').map(item => item.trim()).filter(Boolean)
-          : [],
-      };
+      try {
+        // Format dates with proper timezone handling
+        const dateOfBirth = new Date(data.dateOfBirth);
+        const dateOfSigning = new Date(data.contract.dateOfSigning);
 
-      // Add basic patient data
-      Object.entries(processedData).forEach(([key, value]) => {
-        if (key !== 'documents' && key !== 'contract') {
-          formData.append(key, JSON.stringify(value));
+        // Add timezone offset to ensure consistent UTC time
+        dateOfBirth.setMinutes(dateOfBirth.getMinutes() - dateOfBirth.getTimezoneOffset());
+        dateOfSigning.setMinutes(dateOfSigning.getMinutes() - dateOfSigning.getTimezoneOffset());
+
+        const processedData = {
+          ...data,
+          dateOfBirth: dateOfBirth.toISOString(),
+          contract: {
+            ...data.contract,
+            dateOfSigning: dateOfSigning.toISOString(),
+          },
+          currentDiagnoses: data.currentDiagnoses
+            ? String(data.currentDiagnoses).split(',').map(item => item.trim()).filter(Boolean)
+            : [],
+          allergies: data.allergies
+            ? String(data.allergies).split(',').map(item => item.trim()).filter(Boolean)
+            : [],
+        };
+
+        // Add basic patient data
+        Object.entries(processedData).forEach(([key, value]) => {
+          if (key !== 'documents' && key !== 'contract') {
+            formData.append(key, JSON.stringify(value));
+          }
+        });
+
+        // Add documents
+        if (data.documents.healthInsurance) {
+          formData.append('healthInsurance', data.documents.healthInsurance);
         }
-      });
+        data.documents.otherDocuments.forEach((file) => {
+          formData.append('otherDocuments', file);
+        });
 
-      // Add documents
-      if (data.documents.healthInsurance) {
-        formData.append('healthInsurance', data.documents.healthInsurance);
+        // Add contract data
+        formData.append('contract', JSON.stringify(processedData.contract));
+
+        const response = await fetch("/api/patients", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error("Error processing form data:", error);
+        throw error;
       }
-      data.documents.otherDocuments.forEach((file) => {
-        formData.append('otherDocuments', file);
-      });
-
-      // Add contract data
-      formData.append('contract', JSON.stringify(processedData.contract));
-
-      const response = await fetch("/api/patients", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
