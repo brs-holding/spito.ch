@@ -318,22 +318,22 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      // Validate required fields
-      const { title, type } = req.body;
+      const { title, type, metadata } = req.body;
+
+      // Basic validation
       if (!title || !type) {
         return res.status(400).send("Title and type are required");
       }
 
-      // For now, we'll store file data in the database directly
-      // In a production environment, you would want to store files in a proper storage service
+      // Create document record
       const documentData = {
         patientId: parseInt(req.params.id),
         uploadedBy: req.user!.id,
         title,
         type,
-        fileUrl: `document_${Date.now()}.pdf`, // Placeholder URL
+        fileUrl: `document_${Date.now()}.pdf`, // For now using a placeholder URL
         uploadedAt: new Date(),
-        metadata: req.body.metadata || {},
+        metadata: metadata || {},
       };
 
       const [newDocument] = await db

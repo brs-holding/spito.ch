@@ -30,24 +30,23 @@ export default function DocumentUpload({ patientId }: DocumentUploadProps) {
         throw new Error("Bitte füllen Sie Titel und Typ aus");
       }
 
-      const formData = new FormData();
-      formData.append('title', title);
-      formData.append('type', type);
-
-      // Add file if selected
-      if (file) {
-        formData.append('file', file); //Added this line to append the file
-        formData.append('metadata', JSON.stringify({
+      const documentData = {
+        title,
+        type,
+        metadata: file ? {
           fileName: file.name,
           fileSize: file.size,
           fileType: file.type,
           uploadDate: new Date().toISOString()
-        }));
-      }
+        } : {}
+      };
 
       const response = await fetch(`/api/patients/${patientId}/documents`, {
         method: "POST",
-        body: formData, // Changed to formData
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(documentData),
         credentials: "include",
       });
 
