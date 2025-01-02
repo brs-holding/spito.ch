@@ -1,13 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  ResponsiveContainer,
-  TimelineConnector,
-  TimelineDot,
-  TimelineItem,
-  TimelineSeparator,
-  TimelineContent,
-} from "recharts";
 import { Progress } from "@db/schema";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,7 +34,7 @@ export default function Timeline({ carePlanId }: TimelineProps) {
             </div>
           ) : (
             <div className="relative">
-              {progressData?.map((progress, index) => (
+              {progressData?.map((progress) => (
                 <div
                   key={progress.id}
                   className="mb-8 flex gap-4 relative before:absolute before:left-[17px] before:top-[24px] before:h-full before:w-[2px] before:bg-border last:before:hidden"
