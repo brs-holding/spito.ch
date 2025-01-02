@@ -126,8 +126,19 @@ export default function PatientRegistrationForm() {
     mutationFn: async (data: PatientFormValues) => {
       const formData = new FormData();
 
+      // Convert comma-separated strings to arrays for diagnoses and allergies
+      const processedData = {
+        ...data,
+        currentDiagnoses: data.currentDiagnoses
+          ? String(data.currentDiagnoses).split(',').map(item => item.trim()).filter(Boolean)
+          : [],
+        allergies: data.allergies
+          ? String(data.allergies).split(',').map(item => item.trim()).filter(Boolean)
+          : [],
+      };
+
       // Add basic patient data
-      Object.entries(data).forEach(([key, value]) => {
+      Object.entries(processedData).forEach(([key, value]) => {
         if (key !== 'documents' && key !== 'contract') {
           formData.append(key, JSON.stringify(value));
         }
@@ -182,7 +193,7 @@ export default function PatientRegistrationForm() {
 
   const getFieldsForStep = (step: number) => {
     switch (step) {
-      case 0: // Basic Info
+      case 0: 
         return [
           "firstName",
           "lastName",
@@ -198,7 +209,7 @@ export default function PatientRegistrationForm() {
           "emergencyContact.relationship",
           "emergencyContact.phone",
         ];
-      case 1: // Medical
+      case 1: 
         return [
           "medicalHistory",
           "currentDiagnoses",
@@ -207,11 +218,11 @@ export default function PatientRegistrationForm() {
           "primaryPhysicianContact.phone",
           "primaryPhysicianContact.email",
         ];
-      case 2: // Documents
+      case 2: 
         return ["documents.healthInsurance", "documents.otherDocuments"];
-      case 3: // Contract
+      case 3: 
         return ["contract.signature", "contract.dateOfSigning", "contract.termsAccepted"];
-      case 4: // Notes
+      case 4: 
         return ["preferences", "familyAccess"];
       default:
         return [];
@@ -461,11 +472,22 @@ export default function PatientRegistrationForm() {
             <FormField
               control={form.control}
               name="currentDiagnoses"
-              render={({ field }) => (
+              render={({ field: { onChange, ...field } }) => (
                 <FormItem>
                   <FormLabel>Current Diagnoses</FormLabel>
                   <FormControl>
-                    <Textarea {...field} placeholder="Enter current diagnoses, separated by commas" />
+                    <Textarea 
+                      {...field}
+                      onChange={(e) => {
+                        onChange(e.target.value);
+                        const diagnoses = e.target.value
+                          .split(',')
+                          .map(item => item.trim())
+                          .filter(Boolean);
+                        form.setValue('currentDiagnoses', diagnoses);
+                      }}
+                      placeholder="Enter diagnoses, separated by commas (e.g., Diabetes, Hypertension)"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -474,11 +496,22 @@ export default function PatientRegistrationForm() {
             <FormField
               control={form.control}
               name="allergies"
-              render={({ field }) => (
+              render={({ field: { onChange, ...field } }) => (
                 <FormItem>
                   <FormLabel>Allergies</FormLabel>
                   <FormControl>
-                    <Textarea {...field} placeholder="Enter allergies, separated by commas" />
+                    <Textarea 
+                      {...field}
+                      onChange={(e) => {
+                        onChange(e.target.value);
+                        const allergies = e.target.value
+                          .split(',')
+                          .map(item => item.trim())
+                          .filter(Boolean);
+                        form.setValue('allergies', allergies);
+                      }}
+                      placeholder="Enter allergies, separated by commas (e.g., Penicillin, Peanuts)"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
