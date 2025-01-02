@@ -45,44 +45,16 @@ export function registerRoutes(app: Express): Server {
 
     try {
       const employees = await db
-        .select()
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          isActive: users.isActive,
+        })
         .from(users)
         .where(eq(users.organizationId, req.user.organizationId!));
 
-      const employeePerformance = await Promise.all(
-        employees.map(async (employee) => {
-          // Get service logs for employee
-          const logs = await db
-            .select({
-              totalHours: sql<number>`sum(${serviceLogs.duration}) / 60.0`,
-              totalBilled: sql<number>`sum(${serviceLogs.billingAmount})`,
-              patientCount: sql<number>`count(distinct ${serviceLogs.patientId})`,
-            })
-            .from(serviceLogs)
-            .where(eq(serviceLogs.employeeId, employee.id))
-            .limit(1);
-
-          const hourlyRate = employee.hourlyRate || 0;
-          const monthlyFixedCosts = employee.monthlyFixedCosts || {};
-          const totalFixedCosts = Object.values(monthlyFixedCosts).reduce((sum, cost) => sum + (Number(cost) || 0), 0);
-
-          const totalCosts = (logs[0]?.totalHours || 0) * Number(hourlyRate) + totalFixedCosts;
-          const profit = (logs[0]?.totalBilled || 0) - totalCosts;
-
-          return {
-            ...employee,
-            performance: {
-              hoursWorked: logs[0]?.totalHours || 0,
-              clientsManaged: logs[0]?.patientCount || 0,
-              earningsGenerated: logs[0]?.totalBilled || 0,
-              costs: totalCosts,
-              profit,
-            }
-          };
-        })
-      );
-
-      res.json(employeePerformance);
+      res.json(employees);
     } catch (error: any) {
       console.error("Error fetching employees:", error);
       res.status(500).json({
@@ -98,7 +70,7 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      console.log('Received employee data:', req.body); // Debug log
+      console.log('Received employee data:', req.body);
 
       const result = insertUserSchema.safeParse({
         ...req.body,
@@ -107,31 +79,23 @@ export function registerRoutes(app: Express): Server {
       });
 
       if (!result.success) {
-        console.error('Validation errors:', result.error.issues); // Debug log
+        console.error('Validation errors:', result.error.issues);
         return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
-
-      // Clean up optional numeric fields
-      const cleanedData = {
-        ...result.data,
-        hourlyRate: result.data.hourlyRate ?? 0,
-        monthlyFixedCosts: Object.fromEntries(
-          Object.entries(result.data.monthlyFixedCosts || {}).map(([key, value]) => [key, value ?? 0])
-        ),
-      };
-
-      console.log('Cleaned data for insert:', cleanedData); // Debug log
 
       const [newEmployee] = await db
         .insert(users)
         .values({
-          ...cleanedData,
-          createdAt: new Date(),
+          username: result.data.username,
+          password: result.data.password,
+          email: result.data.email,
+          role: "spitex_employee",
+          organizationId: req.user.organizationId,
           isActive: true,
         })
         .returning();
 
-      console.log('Created employee:', newEmployee); // Debug log
+      console.log('Created employee:', newEmployee);
       res.json(newEmployee);
     } catch (error: any) {
       console.error("Error creating employee:", error);
