@@ -24,6 +24,8 @@ import {
   visitLogs,
   videoSessions,
   notifications,
+  invoices, // Added import
+  insertInvoiceSchema, // Added import
 } from "@db/schema";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import path from 'path';
@@ -1013,7 +1015,7 @@ export function registerRoutes(app: Express): Server {
   });
 
 
-  // Progress
+  //// Progress
   app.get("/api/progress/:carePlanId", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -1320,6 +1322,60 @@ export function registerRoutes(app: Express): Server {
       console.error("Error fetching employee analytics:", error);
       res.status(500).json({
         message: "Failed to fetch employee analytics",
+        error: error.message,
+      });
+    }
+  });
+
+  // Invoice Routes
+  app.get("/api/invoices", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const allInvoices = await db
+        .select()
+        .from(invoices)
+        .orderBy(desc(invoices.createdAt));
+
+      res.json(allInvoices);
+    } catch (error: any) {
+      console.error("Error fetching invoices:", error);
+      res.status(500).json({
+        message: "Failed to fetch invoices",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/invoices", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const result = insertInvoiceSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
+      }
+
+      // Generate invoice number
+      const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+
+      const [newInvoice] = await db
+        .insert(invoices)
+        .values({
+          ...result.data,
+          invoiceNumber,
+        })
+        .returning();
+
+      res.json(newInvoice);
+    } catch (error: any) {
+      console.error("Error creating invoice:", error);
+      res.status(500).json({
+        message: "Failed to create invoice",
         error: error.message,
       });
     }

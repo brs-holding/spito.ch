@@ -12,6 +12,7 @@ import PatientsPage from "./pages/PatientsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import SchedulePage from "./pages/SchedulePage";
 import TasksPage from "./pages/TasksPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
 import { useUser } from "./hooks/use-user";
@@ -70,6 +71,7 @@ function App() {
           <Route path="/appointments" component={AppointmentsPage} />
           <Route path="/schedule" component={SchedulePage} />
           <Route path="/tasks" component={TasksPage} />
+          <Route path="/invoices" component={InvoicesPage} />
           <Route path="/analytics">
             {canAccessAnalytics ? <AnalyticsPage /> : <NotFound />}
           </Route>
