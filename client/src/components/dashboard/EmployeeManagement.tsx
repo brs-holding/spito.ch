@@ -31,6 +31,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import SubUserOverview from "./SubUserOverview";
 import { Separator } from "@/components/ui/separator";
+import { queryClient } from "@/lib/queryClient";
+import { useState } from "react";
 
 const employeeSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
@@ -58,6 +60,8 @@ type EmployeeFormData = z.infer<typeof employeeSchema>;
 
 export function EmployeeManagement() {
   const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
     defaultValues: {
@@ -96,6 +100,9 @@ export function EmployeeManagement() {
         title: "Success",
         description: "Employee added successfully",
       });
+      setDialogOpen(false);
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/organization/employees"] });
     },
     onError: (error: Error) => {
       toast({
@@ -131,7 +138,7 @@ export function EmployeeManagement() {
         }}
       />
 
-      <Dialog>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogTrigger asChild>
           <span data-dialog-trigger="add-employee" className="hidden" />
         </DialogTrigger>
@@ -379,8 +386,12 @@ export function EmployeeManagement() {
               </div>
 
               <div className="flex justify-end pt-4">
-                <Button type="submit" size="lg">
-                  Add Employee
+                <Button 
+                  type="submit" 
+                  size="lg"
+                  disabled={addEmployeeMutation.isPending}
+                >
+                  {addEmployeeMutation.isPending ? "Adding..." : "Add Employee"}
                 </Button>
               </div>
             </form>
