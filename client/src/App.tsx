@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import PatientDashboard from "./pages/PatientDashboard";
 import PatientRegistration from "./pages/PatientRegistration";
 import PricingPage from "./pages/PricingPage";
+import HomePage from "./pages/HomePage";
 import { useUser } from "./hooks/use-user";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/ui/Header";
@@ -21,20 +22,24 @@ function App() {
     );
   }
 
+  // If user is not logged in, show public routes
   if (!user) {
     return (
       <>
         <Header />
         <Switch>
+          <Route path="/" component={HomePage} />
           <Route path="/pricing" component={PricingPage} />
           <Route path="/register" component={() => <AuthPage isRegister={true} />} />
           <Route path="/login" component={AuthPage} />
-          <Route component={() => <AuthPage />} />
+          <Route component={HomePage} />
         </Switch>
+        <Toaster />
       </>
     );
   }
 
+  // If user is logged in, show authenticated routes
   return (
     <>
       <Header />
