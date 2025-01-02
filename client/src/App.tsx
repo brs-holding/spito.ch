@@ -11,6 +11,7 @@ import { EmployeeManagement } from "@/components/dashboard/EmployeeManagement";
 import PatientsPage from "./pages/PatientsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import SchedulePage from "./pages/SchedulePage";
+import TasksPage from "./pages/TasksPage";
 import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
 import { useUser } from "./hooks/use-user";
 import { Toaster } from "@/components/ui/toaster";
@@ -65,6 +66,7 @@ function App() {
           <Route path="/patients" component={PatientsPage} />
           <Route path="/appointments" component={AppointmentsPage} />
           <Route path="/schedule" component={SchedulePage} />
+          <Route path="/tasks" component={TasksPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
