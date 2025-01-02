@@ -21,9 +21,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import AppointmentScheduler from "../appointments/AppointmentScheduler";
-import { Patient } from "@db/schema";
+import { Patient, type InsertPatient } from "@db/schema";
 import {
   User,
   Phone,
@@ -40,7 +42,6 @@ import {
 import { LoadingTransition } from "@/components/ui/LoadingTransition";
 import DocumentUpload from "./DocumentUpload";
 import DocumentList from "./DocumentList";
-import { useForm } from "react-hook-form";
 
 interface PatientDetailsDialogProps {
   patient: Patient | null;
@@ -64,7 +65,7 @@ export default function PatientDetailsDialog({
     enabled: !!patient,
   });
 
-  const form = useForm({
+  const form = useForm<InsertPatient>({
     defaultValues: {
       firstName: patient?.firstName || "",
       lastName: patient?.lastName || "",
@@ -76,11 +77,14 @@ export default function PatientDetailsDialog({
       medicalHistory: patient?.medicalHistory || "",
       currentDiagnoses: patient?.currentDiagnoses || [],
       allergies: patient?.allergies || [],
+      gender: patient?.gender || "other",
+      primaryPhysicianContact: patient?.primaryPhysicianContact || "",
+      familyAccess: patient?.familyAccess || false,
     },
   });
 
   const updatePatientMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Partial<InsertPatient>) => {
       const response = await fetch(`/api/patients/${patient?.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -142,7 +146,7 @@ export default function PatientDetailsDialog({
     },
   });
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: InsertPatient) => {
     updatePatientMutation.mutate(data);
   };
 
@@ -260,6 +264,18 @@ export default function PatientDetailsDialog({
                           <p className="font-medium">{patient.phone}</p>
                         )}
                       </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Gender</p>
+                        {isEditing ? (
+                          <select {...form.register("gender")} className="w-full p-2 border rounded">
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                          </select>
+                        ) : (
+                          <p className="font-medium capitalize">{patient.gender}</p>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -335,7 +351,7 @@ export default function PatientDetailsDialog({
                       />
                     ) : (
                       <div className="space-y-2">
-                        {patient.currentDiagnoses?.length > 0 ? (
+                        {Array.isArray(patient.currentDiagnoses) && patient.currentDiagnoses.length > 0 ? (
                           patient.currentDiagnoses.map((diagnosis: string, index: number) => (
                             <p key={index}>{diagnosis}</p>
                           ))
@@ -357,7 +373,7 @@ export default function PatientDetailsDialog({
                       />
                     ) : (
                       <div className="space-y-2">
-                        {patient.allergies?.length > 0 ? (
+                        {Array.isArray(patient.allergies) && patient.allergies.length > 0 ? (
                           patient.allergies.map((allergy: string, index: number) => (
                             <p key={index}>{allergy}</p>
                           ))
@@ -376,7 +392,7 @@ export default function PatientDetailsDialog({
                 <Card>
                   <CardContent className="pt-6">
                     <h3 className="font-medium mb-4">Appointment History</h3>
-                    {appointments?.length > 0 ? (
+                    {Array.isArray(appointments) && appointments.length > 0 ? (
                       <div className="space-y-4">
                         {appointments.map((apt: any) => (
                           <div

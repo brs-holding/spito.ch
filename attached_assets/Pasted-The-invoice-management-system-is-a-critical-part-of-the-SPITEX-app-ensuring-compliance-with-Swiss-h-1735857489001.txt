@@ -1,0 +1,75 @@
+The invoice management system is a critical part of the SPITEX app, ensuring compliance with Swiss healthcare norms and efficient financial tracking. This section will handle invoicing for patients and health insurances, including tracking payments, calculating patient self-pay amounts (Selbstbehalt), and adhering to SPITEX-specific terms and methods.
+
+Key Features and Requirements
+1. Invoice Creation
+Connected to Patients:
+Link each invoice to a specific patient and their associated services.
+Automatically pull data from patient service logs to populate the invoice (e.g., service date, category, time spent, billing codes).
+Invoice Details:
+Unique recognition number for each invoice (e.g., INVOICE-YYYYMMDD-XXXXX).
+Invoice recipient:
+Health Insurance (Krankenkasse).
+Patient (if no insurance or for Selbstbehalt).
+Breakdown of services performed, including:
+Service category (e.g., medical care, personal care).
+Hours worked and associated rates.
+Billing codes (aligned with Swiss norms).
+Tax details (if applicable).
+
+2. Payment Tracking
+Status Options:
+Pending, Paid, Overdue.
+Payment Logs:
+Record payment date, amount paid, and payment method.
+Option to add partial payments and track remaining balance.
+Automatic Reminders:
+Send email notifications to the responsible party (health insurance or patient) for overdue invoices.
+
+
+Invoice Management Section for SPITEX App
+The invoice management system is a critical part of the SPITEX app, ensuring compliance with Swiss healthcare norms and efficient financial tracking. This section will handle invoicing for patients and health insurances, including tracking payments, calculating patient self-pay amounts (Selbstbehalt), and adhering to SPITEX-specific terms and methods.
+
+Key Features and Requirements
+1. Invoice Creation
+Connected to Patients:
+Link each invoice to a specific patient and their associated services.
+Automatically pull data from patient service logs to populate the invoice (e.g., service date, category, time spent, billing codes).
+Invoice Details:
+Unique recognition number for each invoice (e.g., INVOICE-YYYYMMDD-XXXXX).
+Invoice recipient:
+Health Insurance (Krankenkasse).
+Patient (if no insurance or for Selbstbehalt).
+Breakdown of services performed, including:
+Service category (e.g., medical care, personal care).
+Hours worked and associated rates.
+Billing codes (aligned with Swiss norms).
+Tax details (if applicable).
+2. Payment Tracking
+Status Options:
+Pending, Paid, Overdue.
+Payment Logs:
+Record payment date, amount paid, and payment method.
+Option to add partial payments and track remaining balance.
+Automatic Reminders:
+Send email notifications to the responsible party (health insurance or patient) for overdue invoices.
+3. Selbstbehalt Calculation
+Automatically calculate the patient’s self-pay amount based on:
+Deductible (Franchise): Annual amount the patient must pay before insurance coverage begins.
+Co-payment (Selbstbehalt): Typically 10% of the costs after the deductible is met, capped at CHF 700 annually (standard in Switzerland).
+Invoice Breakdown:
+Display the Selbstbehalt amount separately on the invoice.
+
+4. Invoice Use Cases and Saving
+Record the exact use case for the invoice (e.g., monthly services, special treatments).
+Include fields for:
+Service Period: Start and end dates of services included in the invoice.
+Purpose of Invoice: Free-text field to specify use case details.
+Save all invoices in the system for auditing and compliance purposes.
+
+5. PDF Generation
+Automatically generate a PDF version of each invoice, with:
+Invoice header (SPITEX organization details, recognition number, recipient details).
+Itemized breakdown of services.
+Selbstbehalt and total amount due.
+Payment instructions (e.g., bank details, QR code for payment).
+
