@@ -8,6 +8,9 @@ import PatientRegistration from "./pages/PatientRegistration";
 import PricingPage from "./pages/PricingPage";
 import HomePage from "./pages/HomePage";
 import { EmployeeManagement } from "@/components/dashboard/EmployeeManagement";
+import PatientsPage from "./pages/PatientsPage";
+import AppointmentsPage from "./pages/AppointmentsPage";
+import SchedulePage from "./pages/SchedulePage";
 import { useUser } from "./hooks/use-user";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/ui/Header";
@@ -58,6 +61,9 @@ function App() {
           <Route path="/employees">
             {user.role === "spitex_org" ? <EmployeeManagement /> : <NotFound />}
           </Route>
+          <Route path="/patients" component={PatientsPage} />
+          <Route path="/appointments" component={AppointmentsPage} />
+          <Route path="/schedule" component={SchedulePage} />
           <Route component={NotFound} />
         </Switch>
       </main>
