@@ -12,6 +12,7 @@ import PatientsPage from "./pages/PatientsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import SchedulePage from "./pages/SchedulePage";
 import TasksPage from "./pages/TasksPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
 import { useUser } from "./hooks/use-user";
 import { Toaster } from "@/components/ui/toaster";
@@ -51,7 +52,9 @@ function App() {
     );
   }
 
-  // If user is logged in, show authenticated routes
+  // Only allow spitex_org and super_admin to access analytics
+  const canAccessAnalytics = ["spitex_org", "super_admin"].includes(user.role);
+
   return (
     <>
       <Header />
@@ -67,6 +70,9 @@ function App() {
           <Route path="/appointments" component={AppointmentsPage} />
           <Route path="/schedule" component={SchedulePage} />
           <Route path="/tasks" component={TasksPage} />
+          <Route path="/analytics">
+            {canAccessAnalytics ? <AnalyticsPage /> : <NotFound />}
+          </Route>
           <Route component={NotFound} />
         </Switch>
       </main>

@@ -1006,7 +1006,7 @@ export function registerRoutes(app: Express): Server {
     res.json({ schedules, medications: medicationDetails });
   });
 
-  app.post("/api/patient/medication-adherence", async (req, res) => {
+  app.post("/api/patient/medication-adherence", async (reqres) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1155,6 +1155,102 @@ export function registerRoutes(app: Express): Server {
       .returning();
 
     res.json(updatedSession);
+  });
+
+  // Analytics Routes
+  app.get("/api/analytics/tasks", async (req, res) => {
+    if (!req.isAuthenticated() || !["spitex_org", "super_admin"].includes(req.user.role)) {
+      return res.status(403).send("Not authorized");
+    }
+
+    try {
+      // Get task completion metrics
+      const taskStats = await db
+        .select({
+          status: tasks.status,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(tasks)
+        .groupBy(tasks.status);
+
+      const completionRate = taskStats.map(stat => ({
+        name: stat.status,
+        value: stat.count,
+      }));
+
+      res.json({ completionRate });
+    } catch (error: any) {
+      console.error("Error fetching task analytics:", error);
+      res.status(500).json({
+        message: "Failed to fetch task analytics",
+        error: error.message,
+      });
+    }
+  });
+
+  app.get("/api/analytics/patients", async (req, res) => {
+    if (!req.isAuthenticated() || !["spitex_org", "super_admin"].includes(req.user.role)) {
+      return res.status(403).send("Not authorized");
+    }
+
+    try {
+      // Get patient growth over time (last 6 months)
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+      const patientGrowth = await db
+        .select({
+          date: sql<string>`date_trunc('month', ${patients.createdAt})::text`,
+          patients: sql<number>`count(*)::int`,
+        })
+        .from(patients)
+        .where(gte(patients.createdAt, sixMonthsAgo))
+        .groupBy(sql`date_trunc('month', ${patients.createdAt})`)
+        .orderBy(sql`date_trunc('month', ${patients.createdAt})`);
+
+      res.json({ growth: patientGrowth });
+    } catch (error: any) {
+      console.error("Error fetching patient analytics:", error);
+      res.status(500).json({
+        message: "Failed to fetch patient analytics",
+        error: error.message,
+      });
+    }
+  });
+
+  app.get("/api/analytics/employees", async (req, res) => {
+    if (!req.isAuthenticated() || !["spitex_org", "super_admin"].includes(req.user.role)) {
+      return res.status(403).send("Not authorized");
+    }
+
+    try {
+      // Get employee performance metrics (tasks completed per month)
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+      const employeePerformance = await db
+        .select({
+          date: sql<string>`date_trunc('month', ${tasks.updatedAt})::text`,
+          completedTasks: sql<number>`count(*)::int`,
+        })
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.status, "completed"),
+            gte(tasks.updatedAt, sixMonthsAgo)
+          )
+        )
+        .groupBy(sql`date_trunc('month', ${tasks.updatedAt})`)
+        .orderBy(sql`date_trunc('month', ${tasks.updatedAt})`);
+
+      res.json({ performance: employeePerformance });
+    } catch (error: any) {
+      console.error("Error fetching employee analytics:", error);
+      res.status(500).json({
+        message: "Failed to fetch employee analytics",
+        error: error.message,
+      });
+    }
   });
 
   const httpServer = createServer(app);
