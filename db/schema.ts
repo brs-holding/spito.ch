@@ -16,8 +16,61 @@ export const patients = pgTable("patients", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   dateOfBirth: timestamp("date_of_birth").notNull(),
+  gender: text("gender", { enum: ["male", "female", "other"] }).notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  address: jsonb("address").notNull(),
+  emergencyContact: jsonb("emergency_contact").notNull(),
   medicalHistory: text("medical_history"),
-  contactInfo: jsonb("contact_info").notNull(),
+  currentDiagnoses: jsonb("current_diagnoses"),
+  allergies: jsonb("allergies"),
+  primaryPhysicianContact: jsonb("primary_physician_contact"),
+  preferences: jsonb("preferences"),
+  familyAccess: jsonb("family_access"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insuranceDetails = pgTable("insurance_details", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  provider: text("provider").notNull(),
+  policyNumber: text("policy_number").notNull(),
+  groupNumber: text("group_number"),
+  billingAddress: jsonb("billing_address").notNull(),
+  coverageDetails: jsonb("coverage_details"),
+  validFrom: timestamp("valid_from").notNull(),
+  validTo: timestamp("valid_to"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const patientDocuments = pgTable("patient_documents", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  type: text("type", {
+    enum: ["medical_report", "prescription", "insurance", "legal", "other"]
+  }).notNull(),
+  title: text("title").notNull(),
+  fileUrl: text("file_url").notNull(),
+  metadata: jsonb("metadata"),
+  uploadedBy: integer("uploaded_by").references(() => users.id).notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
+export const visitLogs = pgTable("visit_logs", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  caregiverId: integer("caregiver_id").references(() => users.id).notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  notes: text("notes"),
+  tasksSummary: jsonb("tasks_summary"),
+  status: text("status", {
+    enum: ["scheduled", "in_progress", "completed", "cancelled"]
+  }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const medications = pgTable("medications", {
@@ -155,18 +208,21 @@ export const userRelations = relations(users, ({ many, one }) => ({
     fields: [users.id],
     references: [patients.userId],
   }),
-  providedAppointments: many(appointments, {relationName: "provider"}),
+  providedAppointments: many(appointments, { relationName: "provider" }),
 }));
 
-export const patientRelations = relations(patients, ({ many, one }) => ({
-  carePlans: many(carePlans),
-  healthMetrics: many(healthMetrics),
-  medicationSchedules: many(medicationSchedules),
-  appointments: many(appointments),
+export const patientRelations = relations(patients, ({ one, many }) => ({
   user: one(users, {
     fields: [patients.userId],
     references: [users.id],
   }),
+  insuranceDetails: many(insuranceDetails),
+  documents: many(patientDocuments),
+  visitLogs: many(visitLogs),
+  carePlans: many(carePlans),
+  healthMetrics: many(healthMetrics),
+  medicationSchedules: many(medicationSchedules),
+  appointments: many(appointments),
 }));
 
 export const carePlanRelations = relations(carePlans, ({ one, many }) => ({
@@ -193,6 +249,35 @@ export const videoSessionRelations = relations(videoSessions, ({ one }) => ({
   appointment: one(appointments, {
     fields: [videoSessions.appointmentId],
     references: [appointments.id],
+  }),
+}));
+
+export const insuranceDetailsRelations = relations(insuranceDetails, ({ one }) => ({
+  patient: one(patients, {
+    fields: [insuranceDetails.patientId],
+    references: [patients.id],
+  }),
+}));
+
+export const patientDocumentsRelations = relations(patientDocuments, ({ one }) => ({
+  patient: one(patients, {
+    fields: [patientDocuments.patientId],
+    references: [patients.id],
+  }),
+  uploadedByUser: one(users, {
+    fields: [patientDocuments.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
+export const visitLogsRelations = relations(visitLogs, ({ one }) => ({
+  patient: one(patients, {
+    fields: [visitLogs.patientId],
+    references: [patients.id],
+  }),
+  caregiver: one(users, {
+    fields: [visitLogs.caregiverId],
+    references: [users.id],
   }),
 }));
 
@@ -229,6 +314,15 @@ export const selectAppointmentSchema = createSelectSchema(appointments);
 export const insertVideoSessionSchema = createInsertSchema(videoSessions);
 export const selectVideoSessionSchema = createSelectSchema(videoSessions);
 
+export const insertInsuranceDetailsSchema = createInsertSchema(insuranceDetails);
+export const selectInsuranceDetailsSchema = createSelectSchema(insuranceDetails);
+
+export const insertPatientDocumentSchema = createInsertSchema(patientDocuments);
+export const selectPatientDocumentSchema = createSelectSchema(patientDocuments);
+
+export const insertVisitLogSchema = createInsertSchema(visitLogs);
+export const selectVisitLogSchema = createSelectSchema(visitLogs);
+
 export type User = typeof users.$inferSelect;
 export type Patient = typeof patients.$inferSelect;
 export type CarePlan = typeof carePlans.$inferSelect;
@@ -240,3 +334,6 @@ export type MedicationSchedule = typeof medicationSchedules.$inferSelect;
 export type MedicationAdherence = typeof medicationAdherence.$inferSelect;
 export type Appointment = typeof appointments.$inferSelect;
 export type VideoSession = typeof videoSessions.$inferSelect;
+export type InsuranceDetails = typeof insuranceDetails.$inferSelect;
+export type PatientDocument = typeof patientDocuments.$inferSelect;
+export type VisitLog = typeof visitLogs.$inferSelect;

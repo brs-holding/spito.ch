@@ -13,13 +13,16 @@ import {
   medicationAdherence,
   appointments,
   videoSessions,
+  insuranceDetails,
+  patientDocuments,
+  visitLogs,
 } from "@db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
-  // Patients
+  // Patient Profile Routes
   app.get("/api/patients", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -28,12 +31,120 @@ export function registerRoutes(app: Express): Server {
     res.json(allPatients);
   });
 
+  app.get("/api/patients/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.id, parseInt(req.params.id)))
+      .limit(1);
+
+    if (!patient) {
+      return res.status(404).send("Patient not found");
+    }
+    res.json(patient);
+  });
+
   app.post("/api/patients", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
     const newPatient = await db.insert(patients).values(req.body).returning();
     res.json(newPatient[0]);
+  });
+
+  app.put("/api/patients/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const [updatedPatient] = await db
+      .update(patients)
+      .set(req.body)
+      .where(eq(patients.id, parseInt(req.params.id)))
+      .returning();
+    res.json(updatedPatient);
+  });
+
+  // Insurance Details Routes
+  app.get("/api/patients/:id/insurance", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const patientInsurance = await db
+      .select()
+      .from(insuranceDetails)
+      .where(eq(insuranceDetails.patientId, parseInt(req.params.id)));
+    res.json(patientInsurance);
+  });
+
+  app.post("/api/patients/:id/insurance", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const newInsurance = await db
+      .insert(insuranceDetails)
+      .values({
+        ...req.body,
+        patientId: parseInt(req.params.id),
+      })
+      .returning();
+    res.json(newInsurance[0]);
+  });
+
+  // Document Routes
+  app.get("/api/patients/:id/documents", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const documents = await db
+      .select()
+      .from(patientDocuments)
+      .where(eq(patientDocuments.patientId, parseInt(req.params.id)));
+    res.json(documents);
+  });
+
+  app.post("/api/patients/:id/documents", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const newDocument = await db
+      .insert(patientDocuments)
+      .values({
+        ...req.body,
+        patientId: parseInt(req.params.id),
+        uploadedBy: req.user!.id,
+      })
+      .returning();
+    res.json(newDocument[0]);
+  });
+
+  // Visit Logs Routes
+  app.get("/api/patients/:id/visits", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const visits = await db
+      .select()
+      .from(visitLogs)
+      .where(eq(visitLogs.patientId, parseInt(req.params.id)));
+    res.json(visits);
+  });
+
+  app.post("/api/patients/:id/visits", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    const newVisit = await db
+      .insert(visitLogs)
+      .values({
+        ...req.body,
+        patientId: parseInt(req.params.id),
+        caregiverId: req.user!.id,
+      })
+      .returning();
+    res.json(newVisit[0]);
   });
 
   // Care Plans
