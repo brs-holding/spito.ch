@@ -1,13 +1,15 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
+import { z } from "zod";
 
+// User schema with role field
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   role: text("role", { enum: ["doctor", "nurse", "admin", "patient"] }).notNull().default("nurse"),
-  fullName: text("full_name").notNull(),
+  fullName: text("full_name").notNull().default(''),
 });
 
 export const patients = pgTable("patients", {
@@ -281,8 +283,17 @@ export const visitLogsRelations = relations(visitLogs, ({ one }) => ({
   }),
 }));
 
-export const insertUserSchema = createInsertSchema(users);
+// Update the schema validation
+export const insertUserSchema = createInsertSchema(users, {
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+  role: z.enum(["doctor", "nurse", "admin", "patient"]).optional(),
+  fullName: z.string().optional(),
+});
+
 export const selectUserSchema = createSelectSchema(users);
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
 
 export const insertPatientSchema = createInsertSchema(patients);
 export const selectPatientSchema = createSelectSchema(patients);
@@ -323,7 +334,6 @@ export const selectPatientDocumentSchema = createSelectSchema(patientDocuments);
 export const insertVisitLogSchema = createInsertSchema(visitLogs);
 export const selectVisitLogSchema = createSelectSchema(visitLogs);
 
-export type User = typeof users.$inferSelect;
 export type Patient = typeof patients.$inferSelect;
 export type CarePlan = typeof carePlans.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
