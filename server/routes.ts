@@ -1334,12 +1334,37 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      const allInvoices = await db
-        .select()
-        .from(invoices)
-        .orderBy(desc(invoices.createdAt));
+      let query = db.select().from(invoices);
 
-      res.json(allInvoices);
+      // Filter invoices based on user role
+      if (req.user.role === "spitex_org") {
+        // Organizations see all their invoices
+        query = db
+          .select()
+          .from(invoices)
+          .where(eq(invoices.organizationId, req.user.organizationId!));
+      } else if (req.user.role === "patient") {
+        // Patients only see their invoices
+        const [patient] = await db
+          .select()
+          .from(patients)
+          .where(eq(patients.userId, req.user.id))
+          .limit(1);
+
+        if (!patient) {
+          return res.status(404).send("Patient profile not found");
+        }
+
+        query = db
+          .select()
+          .from(invoices)
+          .where(eq(invoices.patientId, patient.id));
+      } else {
+        return res.status(403).send("Not authorized to view invoices");
+      }
+
+      const invoicesList = await query;
+      res.json(invoicesList);
     } catch (error: any) {
       console.error("Error fetching invoices:", error);
       res.status(500).json({
@@ -1354,28 +1379,96 @@ export function registerRoutes(app: Express): Server {
       return res.status(401).send("Not authenticated");
     }
 
-    try {
-      const result = insertInvoiceSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
-      }
+    if (req.user.role !== "spitex_org") {
+      return res.status(403).send("Not authorized to create invoices");
+    }
 
-      // Generate invoice number
-      const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+    try {
+      const result = insertInvoiceSchema.safeParse({
+        ...req.body,
+        organizationId: req.user.organizationId,
+        createdById: req.user.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      if (!result.success) {
+        return res.status(400).send(
+          "Invalid input: " + result.error.issues.map(i => i.message).join(", ")
+        );
+      }
 
       const [newInvoice] = await db
         .insert(invoices)
-        .values({
-          ...result.data,
-          invoiceNumber,
-        })
+        .values(result.data)
         .returning();
+
+      // Notify patient about new invoice
+      await db.insert(notifications).values({
+        userId: newInvoice.patientId,
+        type: "invoice_created",
+        message: `New invoice #${newInvoice.invoiceNumber} has been created`,
+        metadata: {
+          invoiceId: newInvoice.id,
+        },
+        isRead: false,
+        createdAt: new Date(),
+      });
 
       res.json(newInvoice);
     } catch (error: any) {
       console.error("Error creating invoice:", error);
       res.status(500).json({
         message: "Failed to create invoice",
+        error: error.message,
+      });
+    }
+  });
+
+  app.get("/api/invoices/:id/pdf", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const [invoice] = await db
+        .select()
+        .from(invoices)
+        .where(eq(invoices.id, invoiceId))
+        .limit(1);
+
+      if (!invoice) {
+        return res.status(404).send("Invoice not found");
+      }
+
+      // Check authorization
+      if (req.user.role === "spitex_org") {
+        if (invoice.organizationId !== req.user.organizationId) {
+          return res.status(403).send("Not authorized to access this invoice");
+        }
+      } else if (req.user.role === "patient") {
+        const [patient] = await db
+          .select()
+          .from(patients)
+          .where(eq(patients.userId, req.user.id))
+          .limit(1);
+
+        if (!patient || invoice.patientId !== patient.id) {
+          return res.status(403).send("Not authorized to access this invoice");
+        }
+      } else {
+        return res.status(403).send("Not authorized to access invoices");
+      }
+
+      // TODO: Generate PDF
+      // For now, send a simple text response
+      res.setHeader('Content-Type', 'text/plain');
+      res.send(`Invoice #${invoice.invoiceNumber}\nAmount: ${invoice.totalAmount}`);
+    } catch (error: any) {
+      console.error("Error generating invoice PDF:", error);
+      res.status(500).json({
+        message: "Failed to generate invoice PDF",
         error: error.message,
       });
     }
