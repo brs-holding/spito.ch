@@ -7,6 +7,7 @@ import PatientDashboard from "./pages/PatientDashboard";
 import PatientRegistration from "./pages/PatientRegistration";
 import { useUser } from "./hooks/use-user";
 import { Toaster } from "@/components/ui/toaster";
+import Header from "@/components/ui/Header";
 
 function App() {
   const { user, isLoading } = useUser();
@@ -20,16 +21,24 @@ function App() {
   }
 
   if (!user) {
-    return <AuthPage />;
+    return (
+      <>
+        <Header />
+        <AuthPage />
+      </>
+    );
   }
 
   return (
     <>
-      <Switch>
-        <Route path="/" component={user.role === "patient" ? PatientDashboard : Dashboard} />
-        <Route path="/register-patient" component={PatientRegistration} />
-        <Route component={NotFound} />
-      </Switch>
+      <Header />
+      <main className="pt-16">
+        <Switch>
+          <Route path="/" component={user.role === "patient" ? PatientDashboard : Dashboard} />
+          <Route path="/register-patient" component={PatientRegistration} />
+          <Route component={NotFound} />
+        </Switch>
+      </main>
       <Toaster />
     </>
   );
