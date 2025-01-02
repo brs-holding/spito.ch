@@ -27,7 +27,9 @@ function App() {
         <Header />
         <Switch>
           <Route path="/pricing" component={PricingPage} />
-          <Route component={AuthPage} />
+          <Route path="/register" component={() => <AuthPage isRegister={true} />} />
+          <Route path="/login" component={AuthPage} />
+          <Route component={() => <AuthPage />} />
         </Switch>
       </>
     );

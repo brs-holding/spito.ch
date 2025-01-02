@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,20 @@ type FormData = {
   fullName?: string;
 };
 
-export default function AuthPage() {
-  const [isRegister, setIsRegister] = useState(false);
+interface AuthPageProps {
+  isRegister?: boolean;
+}
+
+export default function AuthPage({ isRegister: defaultIsRegister = false }: AuthPageProps) {
+  const [isRegister, setIsRegister] = useState(defaultIsRegister);
   const { register: registerUser, login } = useUser();
   const { toast } = useToast();
   const { register, handleSubmit, reset } = useForm<FormData>();
+
+  // Update isRegister state when prop changes
+  useEffect(() => {
+    setIsRegister(defaultIsRegister);
+  }, [defaultIsRegister]);
 
   const onSubmit = async (data: FormData) => {
     try {
