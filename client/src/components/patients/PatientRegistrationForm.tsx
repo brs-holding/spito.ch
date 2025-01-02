@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,7 +48,6 @@ const emergencyContactSchema = z.object({
 });
 
 const patientFormSchema = z.object({
-  // Basic Information
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
@@ -57,8 +56,6 @@ const patientFormSchema = z.object({
   phone: z.string().min(1, "Phone number is required"),
   address: addressSchema,
   emergencyContact: emergencyContactSchema,
-
-  // Medical Information
   medicalHistory: z.string().optional(),
   currentDiagnoses: z.array(z.string()).default([]),
   allergies: z.array(z.string()).default([]),
@@ -67,15 +64,6 @@ const patientFormSchema = z.object({
     phone: z.string().min(1, "Physician phone is required"),
     email: z.string().email("Invalid email address").optional(),
   }),
-
-  // Insurance Information
-  insuranceProvider: z.string().min(1, "Insurance provider is required"),
-  policyNumber: z.string().min(1, "Policy number is required"),
-  groupNumber: z.string().optional(),
-  billingAddress: addressSchema,
-
-  // Notes and Preferences
-  specialNeeds: z.string().optional(),
   preferences: z.string().optional(),
   familyAccess: z.array(z.object({
     name: z.string(),
@@ -89,6 +77,7 @@ type PatientFormValues = z.infer<typeof patientFormSchema>;
 export default function PatientRegistrationForm() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("basic");
+  const queryClient = useQueryClient();
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientFormSchema),
@@ -101,10 +90,25 @@ export default function PatientRegistrationForm() {
 
   const createPatient = useMutation({
     mutationFn: async (data: PatientFormValues) => {
+      // Format the data for the backend
+      const formattedData = {
+        ...data,
+        dateOfBirth: new Date(data.dateOfBirth).toISOString(),
+        address: JSON.stringify(data.address),
+        emergencyContact: JSON.stringify(data.emergencyContact),
+        currentDiagnoses: JSON.stringify(data.currentDiagnoses),
+        allergies: JSON.stringify(data.allergies),
+        primaryPhysicianContact: JSON.stringify(data.primaryPhysicianContact),
+        preferences: JSON.stringify({
+          specialNeeds: data.preferences,
+          familyAccess: data.familyAccess,
+        }),
+      };
+
       const response = await fetch("/api/patients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formattedData),
         credentials: "include",
       });
 
@@ -115,22 +119,29 @@ export default function PatientRegistrationForm() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       toast({
         title: "Success",
         description: "Patient information saved successfully",
       });
+      form.reset();
+      setActiveTab("basic");
     },
     onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to save patient information",
       });
     },
   });
 
-  function onSubmit(data: PatientFormValues) {
-    createPatient.mutate(data);
+  async function onSubmit(data: PatientFormValues) {
+    try {
+      await createPatient.mutateAsync(data);
+    } catch (error) {
+      console.error("Error submitting form:", error);
+    }
   }
 
   return (
@@ -145,10 +156,6 @@ export default function PatientRegistrationForm() {
             <TabsTrigger value="medical">
               <AlertCircle className="h-4 w-4 mr-2" />
               Medical
-            </TabsTrigger>
-            <TabsTrigger value="insurance">
-              <Shield className="h-4 w-4 mr-2" />
-              Insurance
             </TabsTrigger>
             <TabsTrigger value="preferences">
               <FileText className="h-4 w-4 mr-2" />
@@ -427,131 +434,7 @@ export default function PatientRegistrationForm() {
             </div>
           </TabsContent>
 
-          <TabsContent value="insurance" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="insuranceProvider"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Insurance Provider</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="policyNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Policy Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="groupNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Group Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Billing Address</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="billingAddress.street"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Street</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="billingAddress.city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="billingAddress.state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="billingAddress.zipCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ZIP Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
           <TabsContent value="preferences" className="space-y-4">
-            <FormField
-              control={form.control}
-              name="specialNeeds"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Special Needs or Requirements</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      {...field} 
-                      placeholder="Enter any special needs or requirements..."
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <FormField
               control={form.control}
               name="preferences"
@@ -579,8 +462,11 @@ export default function PatientRegistrationForm() {
           >
             Reset
           </Button>
-          <Button type="submit">
-            Register Patient
+          <Button 
+            type="submit" 
+            disabled={createPatient.isPending}
+          >
+            {createPatient.isPending ? "Registering..." : "Register Patient"}
           </Button>
         </div>
       </form>

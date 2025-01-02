@@ -51,8 +51,28 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
-    const newPatient = await db.insert(patients).values(req.body).returning();
-    res.json(newPatient[0]);
+
+    try {
+      const patientData = {
+        ...req.body,
+        dateOfBirth: new Date(req.body.dateOfBirth),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const [newPatient] = await db
+        .insert(patients)
+        .values(patientData)
+        .returning();
+
+      res.json(newPatient);
+    } catch (error: any) {
+      console.error("Error creating patient:", error);
+      res.status(500).json({
+        message: "Failed to create patient",
+        error: error.message,
+      });
+    }
   });
 
   app.put("/api/patients/:id", async (req, res) => {
