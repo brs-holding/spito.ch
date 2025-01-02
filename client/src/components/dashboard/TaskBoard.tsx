@@ -33,8 +33,13 @@ interface TaskBoardProps {
   minimal?: boolean;
 }
 
+type TaskStatus = "pending" | "in_progress" | "completed";
+type TaskPriority = "high" | "medium" | "low";
+
 type TaskWithAssignments = Task & {
   assignments?: TaskAssignment[];
+  status: TaskStatus;
+  priority: TaskPriority;
 };
 
 export default function TaskBoard({ userId, patientId, minimal = false }: TaskBoardProps) {
@@ -44,7 +49,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Fetch tasks based on context (all tasks, patient-specific, or user-specific)
-  const queryKey = patientId 
+  const queryKey = patientId
     ? `/api/patients/${patientId}/tasks`
     : `/api/tasks`;
 
@@ -364,10 +369,10 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                       variant={getBadgeVariant(task.status)}
                       className="capitalize"
                     >
-                      {task.status.replace("_", " ")}
+                      {(task.status || "unknown").replace("_", " ")}
                     </Badge>
-                    <Badge className={getPriorityColor(task.priority)}>
-                      {task.priority}
+                    <Badge className={getPriorityColor(task.priority || "medium")}>
+                      {task.priority || "medium"}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
