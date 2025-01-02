@@ -34,10 +34,13 @@ export default function InvoicesPage() {
 
   const { data: invoices, isLoading } = useQuery<Invoice[]>({
     queryKey: ["/api/invoices"],
+    refetchInterval: 5000, // Refresh every 5 seconds to ensure we have the latest data
   });
 
   const formattedInvoices = invoices?.map(invoice => ({
-    ...invoice,
+    id: invoice.id,
+    invoiceNumber: invoice.invoiceNumber,
+    status: invoice.status,
     formattedDate: format(new Date(invoice.createdAt), 'dd.MM.yyyy'),
     formattedDueDate: format(new Date(invoice.dueDate), 'dd.MM.yyyy'),
     formattedAmount: new Intl.NumberFormat('de-CH', {

@@ -129,12 +129,16 @@ export function CreateInvoiceDialog({
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate the invoices query to trigger a refresh
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       toast({
         title: "Success",
         description: "Invoice created successfully",
       });
       onOpenChange(false);
+      // Reset form and services
+      form.reset();
+      setServices([]);
     },
     onError: (error: Error) => {
       toast({
