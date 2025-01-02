@@ -10,7 +10,9 @@ import {
   healthMetrics, 
   medications,
   medicationSchedules,
-  medicationAdherence 
+  medicationAdherence,
+  appointments,
+  videoSessions,
 } from "@db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 
@@ -226,6 +228,153 @@ export function registerRoutes(app: Express): Server {
       .returning();
 
     res.json(newMetric[0]);
+  });
+
+  // Appointment Routes
+  app.get("/api/appointments", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    let appointmentsList;
+    if (req.user.role === "patient") {
+      const [patient] = await db
+        .select()
+        .from(patients)
+        .where(eq(patients.userId, req.user.id))
+        .limit(1);
+
+      if (!patient) {
+        return res.status(404).send("Patient profile not found");
+      }
+
+      appointmentsList = await db
+        .select()
+        .from(appointments)
+        .where(eq(appointments.patientId, patient.id));
+    } else {
+      appointmentsList = await db
+        .select()
+        .from(appointments)
+        .where(eq(appointments.providerId, req.user.id));
+    }
+
+    res.json(appointmentsList);
+  });
+
+  app.post("/api/appointments", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user.role === "patient") {
+      const [patient] = await db
+        .select()
+        .from(patients)
+        .where(eq(patients.userId, req.user.id))
+        .limit(1);
+
+      if (!patient) {
+        return res.status(404).send("Patient profile not found");
+      }
+
+      const newAppointment = await db
+        .insert(appointments)
+        .values({
+          ...req.body,
+          patientId: patient.id,
+        })
+        .returning();
+
+      res.json(newAppointment[0]);
+    } else {
+      return res.status(403).send("Only patients can book appointments");
+    }
+  });
+
+  app.patch("/api/appointments/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const { status } = req.body;
+    const appointmentId = parseInt(req.params.id);
+
+    const [appointment] = await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.id, appointmentId))
+      .limit(1);
+
+    if (!appointment) {
+      return res.status(404).send("Appointment not found");
+    }
+
+    if (req.user.role !== "patient" && appointment.providerId !== req.user.id) {
+      return res.status(403).send("Not authorized to update this appointment");
+    }
+
+    const [updatedAppointment] = await db
+      .update(appointments)
+      .set({ status })
+      .where(eq(appointments.id, appointmentId))
+      .returning();
+
+    res.json(updatedAppointment);
+  });
+
+  // Video Session Routes
+  app.post("/api/appointments/:id/session", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const appointmentId = parseInt(req.params.id);
+    const [appointment] = await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.id, appointmentId))
+      .limit(1);
+
+    if (!appointment) {
+      return res.status(404).send("Appointment not found");
+    }
+
+    if (appointment.providerId !== req.user.id && req.user.role !== "patient") {
+      return res.status(403).send("Not authorized to create video session");
+    }
+
+    const [videoSession] = await db
+      .insert(videoSessions)
+      .values({
+        appointmentId,
+        sessionId: req.body.sessionId,
+        status: "pending",
+      })
+      .returning();
+
+    res.json(videoSession);
+  });
+
+  app.patch("/api/video-sessions/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const { status } = req.body;
+    const sessionId = parseInt(req.params.id);
+
+    const [updatedSession] = await db
+      .update(videoSessions)
+      .set({ 
+        status,
+        ...(status === "active" ? { startedAt: new Date() } : {}),
+        ...(status === "ended" ? { endedAt: new Date() } : {}),
+      })
+      .where(eq(videoSessions.id, sessionId))
+      .returning();
+
+    res.json(updatedSession);
   });
 
   const httpServer = createServer(app);

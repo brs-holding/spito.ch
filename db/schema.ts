@@ -38,7 +38,7 @@ export const medicationSchedules = pgTable("medication_schedules", {
   medicationId: integer("medication_id").references(() => medications.id).notNull(),
   prescribedById: integer("prescribed_by_id").references(() => users.id).notNull(),
   dosage: text("dosage").notNull(),
-  frequency: jsonb("frequency").notNull(), 
+  frequency: jsonb("frequency").notNull(),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
   instructions: text("instructions"),
@@ -60,8 +60,8 @@ export const medicationAdherence = pgTable("medication_adherence", {
 export const healthMetrics = pgTable("health_metrics", {
   id: serial("id").primaryKey(),
   patientId: integer("patient_id").references(() => patients.id).notNull(),
-  type: text("type", { 
-    enum: ["blood_pressure", "weight", "temperature", "blood_sugar", "heart_rate", "pain_level"] 
+  type: text("type", {
+    enum: ["blood_pressure", "weight", "temperature", "blood_sugar", "heart_rate", "pain_level"]
   }).notNull(),
   value: jsonb("value").notNull(),
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
@@ -96,6 +96,36 @@ export const progress = pgTable("progress", {
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
 });
 
+export const appointments = pgTable("appointments", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  providerId: integer("provider_id").references(() => users.id).notNull(),
+  scheduledFor: timestamp("scheduled_for").notNull(),
+  duration: integer("duration").notNull(), // in minutes
+  status: text("status", {
+    enum: ["scheduled", "cancelled", "completed", "no_show"]
+  }).notNull().default("scheduled"),
+  type: text("type", {
+    enum: ["initial_consultation", "follow_up", "emergency", "routine_checkup"]
+  }).notNull(),
+  notes: text("notes"),
+  symptoms: text("symptoms"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const videoSessions = pgTable("video_sessions", {
+  id: serial("id").primaryKey(),
+  appointmentId: integer("appointment_id").references(() => appointments.id).notNull(),
+  sessionId: text("session_id").notNull(),
+  status: text("status", {
+    enum: ["pending", "active", "ended", "failed"]
+  }).notNull().default("pending"),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  metadata: jsonb("metadata"),
+});
+
 export const medicationScheduleRelations = relations(medicationSchedules, ({ one, many }) => ({
   medication: one(medications, {
     fields: [medicationSchedules.medicationId],
@@ -125,12 +155,14 @@ export const userRelations = relations(users, ({ many, one }) => ({
     fields: [users.id],
     references: [patients.userId],
   }),
+  providedAppointments: many(appointments, {relationName: "provider"}),
 }));
 
 export const patientRelations = relations(patients, ({ many, one }) => ({
   carePlans: many(carePlans),
   healthMetrics: many(healthMetrics),
   medicationSchedules: many(medicationSchedules),
+  appointments: many(appointments),
   user: one(users, {
     fields: [patients.userId],
     references: [users.id],
@@ -144,6 +176,24 @@ export const carePlanRelations = relations(carePlans, ({ one, many }) => ({
   }),
   tasks: many(tasks),
   progressRecords: many(progress),
+}));
+
+export const appointmentRelations = relations(appointments, ({ one }) => ({
+  patient: one(patients, {
+    fields: [appointments.patientId],
+    references: [patients.id],
+  }),
+  provider: one(users, {
+    fields: [appointments.providerId],
+    references: [users.id],
+  }),
+}));
+
+export const videoSessionRelations = relations(videoSessions, ({ one }) => ({
+  appointment: one(appointments, {
+    fields: [videoSessions.appointmentId],
+    references: [appointments.id],
+  }),
 }));
 
 export const insertUserSchema = createInsertSchema(users);
@@ -173,6 +223,12 @@ export const selectMedicationScheduleSchema = createSelectSchema(medicationSched
 export const insertMedicationAdherenceSchema = createInsertSchema(medicationAdherence);
 export const selectMedicationAdherenceSchema = createSelectSchema(medicationAdherence);
 
+export const insertAppointmentSchema = createInsertSchema(appointments);
+export const selectAppointmentSchema = createSelectSchema(appointments);
+
+export const insertVideoSessionSchema = createInsertSchema(videoSessions);
+export const selectVideoSessionSchema = createSelectSchema(videoSessions);
+
 export type User = typeof users.$inferSelect;
 export type Patient = typeof patients.$inferSelect;
 export type CarePlan = typeof carePlans.$inferSelect;
@@ -182,3 +238,5 @@ export type HealthMetric = typeof healthMetrics.$inferSelect;
 export type Medication = typeof medications.$inferSelect;
 export type MedicationSchedule = typeof medicationSchedules.$inferSelect;
 export type MedicationAdherence = typeof medicationAdherence.$inferSelect;
+export type Appointment = typeof appointments.$inferSelect;
+export type VideoSession = typeof videoSessions.$inferSelect;
