@@ -56,7 +56,20 @@ export function registerRoutes(app: Express): Server {
 
     try {
       // Process and validate dates
-      const patientData: any = { ...req.body };
+      const patientData: any = {};
+
+      // Parse JSON strings in FormData
+      Object.keys(req.body).forEach(key => {
+        if (typeof req.body[key] === 'string' && req.body[key].startsWith('{')) {
+          try {
+            patientData[key] = JSON.parse(req.body[key]);
+          } catch (e) {
+            patientData[key] = req.body[key];
+          }
+        } else {
+          patientData[key] = req.body[key];
+        }
+      });
 
       // Handle dateOfBirth if present
       if (patientData.dateOfBirth) {
@@ -74,36 +87,16 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
-      // Handle contract.dateOfSigning if present
-      if (patientData.contract?.dateOfSigning) {
-        try {
-          const dateOfSigning = new Date(patientData.contract.dateOfSigning);
-          if (isNaN(dateOfSigning.getTime())) {
-            throw new Error("Invalid date of signing");
-          }
-          patientData.contract.dateOfSigning = dateOfSigning;
-        } catch (error) {
-          return res.status(400).json({
-            message: "Failed to create patient",
-            error: "Invalid date of signing format",
-          });
-        }
-      }
+      // Convert field names to database column names
+      if (patientData.firstName) patientData.first_name = patientData.firstName;
+      if (patientData.lastName) patientData.last_name = patientData.lastName;
+      if (patientData.dateOfBirth) patientData.date_of_birth = patientData.dateOfBirth;
 
       // Add timestamps
-      patientData.createdAt = new Date();
-      patientData.updatedAt = new Date();
+      patientData.created_at = new Date();
+      patientData.updated_at = new Date();
 
-      // Parse JSON strings in FormData
-      Object.keys(patientData).forEach(key => {
-        if (typeof patientData[key] === 'string' && patientData[key].startsWith('{')) {
-          try {
-            patientData[key] = JSON.parse(patientData[key]);
-          } catch (e) {
-            // If it's not valid JSON, keep the original string
-          }
-        }
-      });
+      console.log("Creating patient with data:", patientData); // Debug log
 
       const [newPatient] = await db
         .insert(patients)

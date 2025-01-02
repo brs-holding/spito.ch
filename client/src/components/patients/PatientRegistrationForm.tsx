@@ -265,12 +265,22 @@ export default function PatientRegistrationForm() {
     const isValid = await isStepValid(activeStep);
     if (isValid) {
       const stepFields = getFieldsForStep(activeStep);
-      const stepData = Object.fromEntries(
-        stepFields.map(field => {
-          const value = form.getValues(field as any);
-          return [field.split('.')[0], value];
-        })
-      );
+      const stepData = {};
+
+      // Correctly extract nested fields
+      stepFields.forEach(field => {
+        const parts = field.split('.');
+        const value = form.getValues(field as any);
+
+        if (parts.length === 1) {
+          stepData[field] = value;
+        } else {
+          // Handle nested fields like address.street
+          const [parent, child] = parts;
+          stepData[parent] = stepData[parent] || {};
+          stepData[parent][child] = value;
+        }
+      });
 
       try {
         await saveStep.mutateAsync({ ...stepData, step: activeStep });
