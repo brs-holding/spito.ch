@@ -24,8 +24,8 @@ import {
   visitLogs,
   videoSessions,
   notifications,
-  invoices, // Added import
-  insertInvoiceSchema, // Added import
+  invoices,
+  insertInvoiceSchema,
 } from "@db/schema";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import path from 'path';
@@ -1016,7 +1016,7 @@ export function registerRoutes(app: Express): Server {
 
 
   //// Progress
-  app.get("/api/progress/:carePlanId", async (req, res) => {
+  app.get("/api/progress/:carePlanId", async(req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1384,35 +1384,50 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      const result = insertInvoiceSchema.safeParse({
+      // Generate invoice number
+      const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+
+      // Prepare the invoice data
+      const invoiceData = {
         ...req.body,
+        invoiceNumber,
         organizationId: req.user.organizationId,
         createdById: req.user.id,
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
-
-      if (!result.success) {
-        return res.status(400).send(
-          "Invalid input: " + result.error.issues.map(i => i.message).join(", ")
-        );
-      }
+        // Ensure all required fields are present and properly formatted
+        startDate: new Date(req.body.startDate),
+        endDate: new Date(req.body.endDate),
+        dueDate: new Date(req.body.dueDate),
+        totalAmount: req.body.totalAmount.toString(),
+        selbstbehaltAmount: req.body.selbstbehaltAmount.toString(),
+        status: req.body.status || "draft",
+        recipientType: req.body.recipientType || "insurance",
+        metadata: {
+          ...req.body.metadata,
+          createdBy: req.user.fullName,
+          createdAt: new Date().toISOString(),
+        }
+      };
 
       const [newInvoice] = await db
         .insert(invoices)
-        .values(result.data)
+        .values(invoiceData)
         .returning();
 
-      // Notify patient about new invoice
+      // Create notification for the patient
       await db.insert(notifications).values({
-        userId: newInvoice.patientId,
+        userId: invoiceData.patientId,
+        title: "New Invoice Created",
+        message: `A new invoice (#${invoiceNumber}) has been created for your services`,
         type: "invoice_created",
-        message: `New invoice #${newInvoice.invoiceNumber} has been created`,
-        metadata: {
-          invoiceId: newInvoice.id,
-        },
+        priority: "normal",
         isRead: false,
         createdAt: new Date(),
+        metadata: {
+          invoiceId: newInvoice.id,
+          invoiceNumber: invoiceNumber,
+        }
       });
 
       res.json(newInvoice);
