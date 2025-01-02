@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Task } from "@db/schema";
+import { Task, TaskAssignment } from "@db/schema";
 import {
   Select,
   SelectContent,
@@ -33,6 +33,10 @@ interface TaskBoardProps {
   minimal?: boolean;
 }
 
+type TaskWithAssignments = Task & {
+  assignments?: TaskAssignment[];
+};
+
 export default function TaskBoard({ userId, patientId, minimal = false }: TaskBoardProps) {
   const { user } = useUser();
   const { toast } = useToast();
@@ -44,18 +48,18 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
     ? `/api/patients/${patientId}/tasks`
     : `/api/tasks`;
 
-  const { data: tasks, isLoading } = useQuery<Task[]>({
+  const { data: tasks, isLoading } = useQuery<TaskWithAssignments[]>({
     queryKey: [queryKey],
   });
 
   // Fetch available employees for task assignment
-  const { data: employees } = useQuery({
+  const { data: employees = [] } = useQuery({
     queryKey: ['/api/organization/employees'],
     enabled: user?.role === 'spitex_org' || user?.role === 'super_admin',
   });
 
   // Fetch available patients if no specific patient is provided
-  const { data: patients } = useQuery({
+  const { data: patients = [] } = useQuery({
     queryKey: ['/api/patients'],
     enabled: !patientId && (user?.role === 'spitex_org' || user?.role === 'super_admin'),
   });
@@ -150,10 +154,21 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
     }
   };
 
+  const getBadgeVariant = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "outline";
+      case "in_progress":
+        return "default";
+      default:
+        return "secondary";
+    }
+  };
+
   const filteredTasks = tasks?.filter((task) => {
     if (filter === "all") return true;
     return task.status === filter;
-  });
+  }) ?? [];
 
   const onSubmit = async (data: any) => {
     try {
@@ -246,7 +261,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                                   <SelectValue placeholder="Select patient" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {patients?.map((patient) => (
+                                  {patients?.map((patient: any) => (
                                     <SelectItem key={patient.id} value={String(patient.id)}>
                                       {patient.firstName} {patient.lastName}
                                     </SelectItem>
@@ -265,7 +280,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                           <FormItem>
                             <FormLabel>Assign To</FormLabel>
                             <Combobox
-                              items={employees?.map(emp => ({
+                              items={employees?.map((emp: any) => ({
                                 label: emp.fullName,
                                 value: String(emp.id)
                               })) ?? []}
@@ -328,13 +343,13 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
       <CardContent>
         {isLoading ? (
           <div className="text-center py-4">Loading tasks...</div>
-        ) : filteredTasks?.length === 0 ? (
+        ) : filteredTasks.length === 0 ? (
           <div className="text-center py-4 text-muted-foreground">
             No tasks {filter !== "all" ? `(${filter})` : ""}
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredTasks?.map((task) => (
+            {filteredTasks.map((task) => (
               <div
                 key={task.id}
                 className="flex items-start gap-4 p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
@@ -346,13 +361,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                       {task.title}
                     </h4>
                     <Badge
-                      variant={
-                        task.status === "completed"
-                          ? "success"
-                          : task.status === "in_progress"
-                          ? "default"
-                          : "secondary"
-                      }
+                      variant={getBadgeVariant(task.status)}
                       className="capitalize"
                     >
                       {task.status.replace("_", " ")}

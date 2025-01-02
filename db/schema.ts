@@ -1,6 +1,6 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { pgTable, text, serial, integer, timestamp, boolean, jsonb, decimal } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const userRoles = [
@@ -514,15 +514,14 @@ export const insertTaskSchema = createInsertSchema(tasks, {
   description: z.string().min(1, "Description is required"),
   dueDate: z.string().min(1, "Due date is required"),
   priority: z.enum(["high", "medium", "low"]).optional().default("medium"),
+  status: z.enum(["pending", "in_progress", "completed"]).optional().default("pending"),
   patientId: z.number().min(1, "Patient is required"),
+  createdById: z.number(),
   assignedToIds: z.array(z.number()).min(1, "At least one assignee is required"),
 });
 
 export const selectTaskSchema = createSelectSchema(tasks);
-export const insertTaskAssignmentSchema = createInsertSchema(taskAssignments);
-export const selectTaskAssignmentSchema = createSelectSchema(taskAssignments);
-
 export type Task = typeof tasks.$inferSelect;
-export type InsertTask = typeof tasks.$inferInsert;
+export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type TaskAssignment = typeof taskAssignments.$inferSelect;
 export type InsertTaskAssignment = typeof taskAssignments.$inferInsert;

@@ -427,7 +427,7 @@ export function registerRoutes(app: Express): Server {
           .innerJoin(taskAssignments, eq(tasks.id, taskAssignments.taskId))
           .where(eq(taskAssignments.assignedToId, req.user.id));
       } else if (req.user.role === "spitex_org") {
-        // Organizations see tasks created by their employees
+        // Organizations see tasks within their organization
         tasksQuery = db
           .select()
           .from(tasks)
@@ -461,12 +461,16 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      const result = insertTaskSchema.safeParse(req.body);
+      const result = insertTaskSchema.safeParse({
+        ...req.body,
+        createdById: req.user.id,
+      });
+
       if (!result.success) {
         return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { title, description, dueDate, patientId, assignedToIds, priority = "medium" } = result.data;
+      const { title, description, dueDate, patientId, assignedToIds, priority = "medium", status = "pending" } = result.data;
 
       // Create the task
       const [newTask] = await db
@@ -478,7 +482,7 @@ export function registerRoutes(app: Express): Server {
           patientId,
           createdById: req.user.id,
           priority,
-          status: "pending",
+          status,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -486,7 +490,7 @@ export function registerRoutes(app: Express): Server {
 
       // Create task assignments
       const assignments = await Promise.all(
-        assignedToIds.map(async (assignedToId: number) => {
+        assignedToIds.map(async (assignedToId) => {
           const [assignment] = await db
             .insert(taskAssignments)
             .values({
@@ -1006,7 +1010,6 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
-
     const [patient] = await db      .select()
       .from(patients)
       .where(eq(patients.userId, req.user!.id))
