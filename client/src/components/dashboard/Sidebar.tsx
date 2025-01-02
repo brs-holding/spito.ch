@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   UserPlus,
+  Receipt,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -69,6 +70,13 @@ export default function Sidebar({ user }: SidebarProps) {
             <Button variant="ghost" className="w-full justify-start">
               <Calendar className="mr-2 h-4 w-4" />
               Schedule
+            </Button>
+          </Link>
+
+          <Link href="/invoices">
+            <Button variant="ghost" className="w-full justify-start">
+              <Receipt className="mr-2 h-4 w-4" />
+              Invoices
             </Button>
           </Link>
 

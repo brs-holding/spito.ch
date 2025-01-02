@@ -1,3 +1,5 @@
+"use client"
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -8,10 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
-import { Patient, InsertInvoice, insertInvoiceSchema } from "@db/schema";
+import { Patient, type InsertInvoice } from "@db/schema";
 import {
   Form,
   FormControl,
@@ -30,21 +33,33 @@ import {
 
 interface CreateInvoiceDialogProps {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
 }
 
-export default function CreateInvoiceDialog({
+export function CreateInvoiceDialog({
   open,
-  onClose,
+  onOpenChange,
 }: CreateInvoiceDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [services, setServices] = useState<Array<{ description: string; amount: number }>>([]);
 
-  const form = useForm<InsertInvoice>({
-    resolver: zodResolver(insertInvoiceSchema),
+  type FormData = Omit<InsertInvoice, 'startDate' | 'endDate' | 'dueDate'> & {
+    startDate: string;
+    endDate: string;
+    dueDate: string;
+    purpose: string;
+  };
+
+  const form = useForm<FormData>({
     defaultValues: {
       recipientType: "insurance",
       status: "draft",
+      purpose: "",
+      totalAmount: "0",
+      startDate: "",
+      endDate: "",
+      dueDate: "",
     },
   });
 
@@ -53,11 +68,25 @@ export default function CreateInvoiceDialog({
   });
 
   const createInvoiceMutation = useMutation({
-    mutationFn: async (data: InsertInvoice) => {
+    mutationFn: async (data: FormData) => {
+      const totalAmount = services.reduce((sum, service) => sum + (service.amount || 0), 0);
+      const selbstbehaltAmount = totalAmount * 0.1; // 10% of total amount
+
       const response = await fetch("/api/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          totalAmount: totalAmount.toString(),
+          selbstbehaltAmount: selbstbehaltAmount.toString(),
+          startDate: new Date(data.startDate).toISOString(),
+          endDate: new Date(data.endDate).toISOString(),
+          dueDate: new Date(data.dueDate).toISOString(),
+          metadata: {
+            purpose: data.purpose,
+            services: services,
+          },
+        }),
         credentials: "include",
       });
 
@@ -73,7 +102,7 @@ export default function CreateInvoiceDialog({
         title: "Success",
         description: "Invoice created successfully",
       });
-      onClose();
+      onOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
@@ -84,12 +113,32 @@ export default function CreateInvoiceDialog({
     },
   });
 
-  const onSubmit = (data: InsertInvoice) => {
+  const addService = () => {
+    setServices([...services, { description: "", amount: 0 }]);
+  };
+
+  const removeService = (index: number) => {
+    const newServices = [...services];
+    newServices.splice(index, 1);
+    setServices(newServices);
+  };
+
+  const updateService = (index: number, field: "description" | "amount", value: string | number) => {
+    const newServices = [...services];
+    newServices[index][field] = value as never;
+    setServices(newServices);
+
+    // Calculate total amount
+    const totalAmount = newServices.reduce((sum, service) => sum + (service.amount || 0), 0);
+    form.setValue("totalAmount", totalAmount.toString());
+  };
+
+  const onSubmit = (data: FormData) => {
     createInvoiceMutation.mutate(data);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Create New Invoice</DialogTitle>
@@ -152,10 +201,27 @@ export default function CreateInvoiceDialog({
 
             <FormField
               control={form.control}
+              name="purpose"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Purpose of Invoice</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter the purpose of this invoice (e.g., monthly services, special treatments)"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="startDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Start Date</FormLabel>
+                  <FormLabel>Service Start Date</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
@@ -169,7 +235,7 @@ export default function CreateInvoiceDialog({
               name="endDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>End Date</FormLabel>
+                  <FormLabel>Service End Date</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
                   </FormControl>
@@ -177,6 +243,46 @@ export default function CreateInvoiceDialog({
                 </FormItem>
               )}
             />
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <FormLabel>Services</FormLabel>
+                <Button type="button" variant="outline" size="sm" onClick={addService}>
+                  Add Service
+                </Button>
+              </div>
+
+              {services.map((service, index) => (
+                <div key={index} className="flex gap-4 items-start">
+                  <div className="flex-1">
+                    <FormLabel>Description</FormLabel>
+                    <Input
+                      value={service.description}
+                      onChange={(e) => updateService(index, "description", e.target.value)}
+                      placeholder="Service description"
+                    />
+                  </div>
+                  <div className="w-32">
+                    <FormLabel>Amount (CHF)</FormLabel>
+                    <Input
+                      type="number"
+                      value={service.amount}
+                      onChange={(e) => updateService(index, "amount", parseFloat(e.target.value))}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="mt-6"
+                    onClick={() => removeService(index)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
 
             <FormField
               control={form.control}
@@ -193,7 +299,7 @@ export default function CreateInvoiceDialog({
             />
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={onClose} type="button">
+              <Button variant="outline" onClick={() => onOpenChange(false)} type="button">
                 Cancel
               </Button>
               <Button type="submit">Create Invoice</Button>
