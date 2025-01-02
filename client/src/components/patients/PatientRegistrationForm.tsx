@@ -129,6 +129,11 @@ export default function PatientRegistrationForm() {
       // Convert comma-separated strings to arrays for diagnoses and allergies
       const processedData = {
         ...data,
+        dateOfBirth: new Date(data.dateOfBirth).toISOString().split('T')[0],
+        contract: {
+          ...data.contract,
+          dateOfSigning: new Date(data.contract.dateOfSigning).toISOString().split('T')[0]
+        },
         currentDiagnoses: data.currentDiagnoses
           ? String(data.currentDiagnoses).split(',').map(item => item.trim()).filter(Boolean)
           : [],
@@ -153,7 +158,7 @@ export default function PatientRegistrationForm() {
       });
 
       // Add contract data
-      formData.append('contract', JSON.stringify(data.contract));
+      formData.append('contract', JSON.stringify(processedData.contract));
 
       const response = await fetch("/api/patients", {
         method: "POST",
