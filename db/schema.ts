@@ -168,7 +168,6 @@ export const carePlans = pgTable("care_plans", {
 
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  carePlanId: integer("care_plan_id").references(() => carePlans.id).notNull(),
   patientId: integer("patient_id").references(() => patients.id).notNull(),
   createdById: integer("created_by_id").references(() => users.id).notNull(),
   title: text("title").notNull(),
@@ -250,6 +249,16 @@ export const taskAssignments = pgTable("task_assignments", {
   taskId: integer("task_id").references(() => tasks.id).notNull(),
   assignedToId: integer("assigned_to_id").references(() => users.id).notNull(),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  priority: text("priority", { enum: ["high", "medium", "low"] }).notNull().default("medium"),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const medicationScheduleRelations = relations(medicationSchedules, ({ one, many }) => ({
@@ -386,10 +395,6 @@ export const serviceLogRelations = relations(serviceLogs, ({ one }) => ({
 }));
 
 export const taskRelations = relations(tasks, ({ one, many }) => ({
-  carePlan: one(carePlans, {
-    fields: [tasks.carePlanId],
-    references: [carePlans.id],
-  }),
   patient: one(patients, {
     fields: [tasks.patientId],
     references: [patients.id],
@@ -411,17 +416,6 @@ export const taskAssignmentRelations = relations(taskAssignments, ({ one }) => (
     references: [users.id],
   }),
 }));
-
-
-export const notifications = pgTable("notifications", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  title: text("title").notNull(),
-  message: text("message").notNull(),
-  priority: text("priority", { enum: ["high", "medium", "low"] }).notNull().default("medium"),
-  isRead: boolean("is_read").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
 
 export const insertProviderScheduleSchema = createInsertSchema(providerSchedules);
 export const selectProviderScheduleSchema = createSelectSchema(providerSchedules);
@@ -519,7 +513,7 @@ export const insertTaskSchema = createInsertSchema(tasks, {
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   dueDate: z.string().min(1, "Due date is required"),
-  priority: z.enum(["high", "medium", "low"]),
+  priority: z.enum(["high", "medium", "low"]).optional().default("medium"),
   patientId: z.number().min(1, "Patient is required"),
   assignedToIds: z.array(z.number()).min(1, "At least one assignee is required"),
 });

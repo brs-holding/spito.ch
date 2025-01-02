@@ -12,6 +12,8 @@ import {
   serviceLogs,
   carePlans,
   tasks,
+  taskAssignments,
+  insertTaskSchema,
   progress,
   healthMetrics,
   medications,
@@ -21,7 +23,7 @@ import {
   patientDocuments,
   visitLogs,
   videoSessions,
-  notifications, // Assuming this import is correct
+  notifications,
 } from "@db/schema";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import path from 'path';
@@ -403,34 +405,43 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      let query = db.select().from(tasks);
+      let tasksQuery;
 
       // Filter tasks based on user role and relationships
       if (req.user.role === "spitex_employee") {
         // Employees see tasks assigned to them
-        const assignedTasks = await db
-          .select()
+        tasksQuery = db
+          .select({
+            id: tasks.id,
+            title: tasks.title,
+            description: tasks.description,
+            dueDate: tasks.dueDate,
+            priority: tasks.priority,
+            status: tasks.status,
+            patientId: tasks.patientId,
+            createdById: tasks.createdById,
+            createdAt: tasks.createdAt,
+            updatedAt: tasks.updatedAt,
+          })
           .from(tasks)
           .innerJoin(taskAssignments, eq(tasks.id, taskAssignments.taskId))
           .where(eq(taskAssignments.assignedToId, req.user.id));
-
-        res.json(assignedTasks);
       } else if (req.user.role === "spitex_org") {
-        // Organizations see tasks of their employees
-        const orgTasks = await db
+        // Organizations see tasks created by their employees
+        tasksQuery = db
           .select()
           .from(tasks)
           .innerJoin(users, eq(tasks.createdById, users.id))
           .where(eq(users.organizationId, req.user.organizationId!));
-
-        res.json(orgTasks);
       } else if (req.user.role === "super_admin") {
         // Super admins see all tasks
-        const allTasks = await query;
-        res.json(allTasks);
+        tasksQuery = db.select().from(tasks);
       } else {
         return res.status(403).send("Not authorized to view tasks");
       }
+
+      const allTasks = await tasksQuery;
+      res.json(allTasks);
     } catch (error: any) {
       console.error("Error fetching tasks:", error);
       res.status(500).json({
@@ -450,7 +461,12 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      const { title, description, dueDate, patientId, assignedToIds, priority = "medium" } = req.body;
+      const result = insertTaskSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
+      }
+
+      const { title, description, dueDate, patientId, assignedToIds, priority = "medium" } = result.data;
 
       // Create the task
       const [newTask] = await db
@@ -991,8 +1007,7 @@ export function registerRoutes(app: Express): Server {
       return res.status(401).send("Not authenticated");
     }
 
-    const [patient] = await db
-      .select()
+    const [patient] = await db      .select()
       .from(patients)
       .where(eq(patients.userId, req.user!.id))
       .limit(1);
