@@ -22,7 +22,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -43,7 +42,6 @@ const employeeSchema = z.object({
   address: z.string().min(1, "Address is required"),
   zipCode: z.string().min(1, "ZIP code is required"),
   city: z.string().min(1, "City is required"),
-  profileImage: z.string().optional(),
   hourlyRate: z.number().min(0, "Hourly rate must be positive").optional().nullable(),
   monthlyFixedCosts: z.object({
     healthInsurance: z.number().min(0).optional().nullable(),
@@ -74,7 +72,6 @@ export function EmployeeManagement() {
         otherExpenses: null,
       },
       hourlyRate: null,
-      profileImage: undefined,
     },
   });
 
@@ -210,46 +207,6 @@ export function EmployeeManagement() {
                         <FormControl>
                           <Input type="tel" {...field} />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="profileImage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Profile Image</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="file" 
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                if (file.size > 500000) { // 500KB limit
-                                  toast({
-                                    variant: "destructive",
-                                    title: "Error",
-                                    description: "Image size should be less than 500KB",
-                                  });
-                                  return;
-                                }
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  field.onChange(reader.result as string);
-                                };
-                                reader.readAsDataURL(file);
-                              } else {
-                                field.onChange(undefined);
-                              }
-                            }}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Optional: Upload a profile picture (max 500KB)
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
