@@ -11,6 +11,7 @@ import { EmployeeManagement } from "@/components/dashboard/EmployeeManagement";
 import PatientsPage from "./pages/PatientsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import SchedulePage from "./pages/SchedulePage";
+import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
 import { useUser } from "./hooks/use-user";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/ui/Header";
@@ -67,6 +68,7 @@ function App() {
           <Route component={NotFound} />
         </Switch>
       </main>
+      <OnboardingTutorial />
       <Toaster />
     </>
   );
