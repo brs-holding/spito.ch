@@ -31,6 +31,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const SERVICE_CATEGORIES = {
+  category_a: {
+    name: "Category A: Needs Assessment, Advice, and Coordination",
+    description: "Services involving the evaluation of patient needs, providing professional advice, and coordinating care with other healthcare providers.",
+    hourlyRate: 76.90
+  },
+  category_b: {
+    name: "Category B: Examination and Treatment",
+    description: "Medical services such as administering medications, wound care, and other treatments prescribed by a physician.",
+    hourlyRate: 63.00
+  },
+  category_c: {
+    name: "Category C: Basic Care",
+    description: "Assistance with daily living activities, including personal hygiene, mobility support, and help with eating or dressing.",
+    hourlyRate: 52.60
+  }
+} as const;
+
+interface ServiceEntry {
+  category: keyof typeof SERVICE_CATEGORIES;
+  hours: number;
+  minutes: number;
+  amount: number;
+}
+
 interface CreateInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,7 +67,7 @@ export function CreateInvoiceDialog({
 }: CreateInvoiceDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [services, setServices] = useState<Array<{ description: string; amount: number }>>([]);
+  const [services, setServices] = useState<ServiceEntry[]>([]);
 
   type FormData = Omit<InsertInvoice, 'startDate' | 'endDate' | 'dueDate'> & {
     startDate: string;
@@ -69,7 +94,7 @@ export function CreateInvoiceDialog({
 
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const totalAmount = services.reduce((sum, service) => sum + (service.amount || 0), 0);
+      const totalAmount = services.reduce((sum, service) => sum + service.amount, 0);
       const selbstbehaltAmount = totalAmount * 0.1; // 10% of total amount
 
       const response = await fetch("/api/invoices", {
@@ -84,7 +109,14 @@ export function CreateInvoiceDialog({
           dueDate: new Date(data.dueDate).toISOString(),
           metadata: {
             purpose: data.purpose,
-            services: services,
+            services: services.map(service => ({
+              category: service.category,
+              name: SERVICE_CATEGORIES[service.category].name,
+              hours: service.hours,
+              minutes: service.minutes,
+              hourlyRate: SERVICE_CATEGORIES[service.category].hourlyRate,
+              amount: service.amount
+            })),
           },
         }),
         credentials: "include",
@@ -114,7 +146,12 @@ export function CreateInvoiceDialog({
   });
 
   const addService = () => {
-    setServices([...services, { description: "", amount: 0 }]);
+    setServices([...services, {
+      category: "category_a",
+      hours: 0,
+      minutes: 0,
+      amount: 0
+    }]);
   };
 
   const removeService = (index: number) => {
@@ -123,13 +160,25 @@ export function CreateInvoiceDialog({
     setServices(newServices);
   };
 
-  const updateService = (index: number, field: "description" | "amount", value: string | number) => {
+  const calculateAmount = (hours: number, minutes: number, hourlyRate: number) => {
+    const totalHours = hours + (minutes / 60);
+    return Number((totalHours * hourlyRate).toFixed(2));
+  };
+
+  const updateService = (index: number, updates: Partial<ServiceEntry>) => {
     const newServices = [...services];
-    newServices[index][field] = value as never;
+    const currentService = newServices[index];
+    const updatedService = { ...currentService, ...updates };
+
+    // Recalculate amount when either time or category changes
+    const hourlyRate = SERVICE_CATEGORIES[updatedService.category].hourlyRate;
+    updatedService.amount = calculateAmount(updatedService.hours, updatedService.minutes, hourlyRate);
+
+    newServices[index] = updatedService;
     setServices(newServices);
 
-    // Calculate total amount
-    const totalAmount = newServices.reduce((sum, service) => sum + (service.amount || 0), 0);
+    // Update total amount in form
+    const totalAmount = newServices.reduce((sum, service) => sum + service.amount, 0);
     form.setValue("totalAmount", totalAmount.toString());
   };
 
@@ -253,33 +302,76 @@ export function CreateInvoiceDialog({
               </div>
 
               {services.map((service, index) => (
-                <div key={index} className="flex gap-4 items-start">
-                  <div className="flex-1">
-                    <FormLabel>Description</FormLabel>
-                    <Input
-                      value={service.description}
-                      onChange={(e) => updateService(index, "description", e.target.value)}
-                      placeholder="Service description"
-                    />
+                <div key={index} className="space-y-4 p-4 border rounded-lg">
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <FormLabel>Category</FormLabel>
+                      <Select
+                        value={service.category}
+                        onValueChange={(value: keyof typeof SERVICE_CATEGORIES) =>
+                          updateService(index, { category: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(SERVICE_CATEGORIES).map(([key, category]) => (
+                            <SelectItem key={key} value={key}>
+                              <div>
+                                <div>{category.name}</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Rate: CHF {category.hourlyRate.toFixed(2)}/hour
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {SERVICE_CATEGORIES[service.category].description}
+                      </p>
+                    </div>
                   </div>
-                  <div className="w-32">
-                    <FormLabel>Amount (CHF)</FormLabel>
-                    <Input
-                      type="number"
-                      value={service.amount}
-                      onChange={(e) => updateService(index, "amount", parseFloat(e.target.value))}
-                      placeholder="0.00"
-                    />
+
+                  <div className="flex gap-4 items-start">
+                    <div className="w-24">
+                      <FormLabel>Hours</FormLabel>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={service.hours}
+                        onChange={(e) =>
+                          updateService(index, { hours: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                    <div className="w-24">
+                      <FormLabel>Minutes</FormLabel>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="59"
+                        value={service.minutes}
+                        onChange={(e) =>
+                          updateService(index, { minutes: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                    <div className="w-32">
+                      <FormLabel>Amount (CHF)</FormLabel>
+                      <p className="mt-2 font-medium">{service.amount.toFixed(2)}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="mt-6"
+                      onClick={() => removeService(index)}
+                    >
+                      Remove
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="mt-6"
-                    onClick={() => removeService(index)}
-                  >
-                    Remove
-                  </Button>
                 </div>
               ))}
             </div>
