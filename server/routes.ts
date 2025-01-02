@@ -20,7 +20,12 @@ import {
   videoSessions,
 } from "@db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
-import path from 'path'; // Import path module
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -371,8 +376,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // For now, we'll send a sample PDF file
-      // In production, you would fetch the actual file from your storage service
-      const samplePdfPath = path.join(__dirname, "../sample.pdf");
+      const samplePdfPath = path.join(__dirname, "..", "sample.pdf");
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'inline; filename=document.pdf');
       res.sendFile(samplePdfPath);
@@ -403,8 +407,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // For now, we'll send a sample PDF file
-      // In production, you would fetch the actual file from your storage service
-      const samplePdfPath = path.join(__dirname, "../sample.pdf");
+      const samplePdfPath = path.join(__dirname, "..", "sample.pdf");
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename=document.pdf');
       res.sendFile(samplePdfPath);

@@ -45,25 +45,6 @@ export default function DocumentList({ patientId }: DocumentListProps) {
     }
   };
 
-  const previewDocument = async (documentId: number) => {
-    try {
-      const response = await fetch(`/api/documents/${documentId}/preview`, {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Fehler beim Laden der Vorschau");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error previewing document:", error);
-    }
-  };
-
   const getDocumentTypeLabel = (type: string) => {
     const types: Record<string, string> = {
       medical_report: "Medizinischer Bericht",
@@ -101,7 +82,7 @@ export default function DocumentList({ patientId }: DocumentListProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => previewDocument(doc.id)}
+                  onClick={() => setPreviewDoc(doc)}
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
@@ -117,6 +98,21 @@ export default function DocumentList({ patientId }: DocumentListProps) {
           ))
         )}
       </div>
+
+      <Dialog open={!!previewDoc} onOpenChange={() => setPreviewDoc(null)}>
+        <DialogContent className="max-w-4xl h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>{previewDoc?.title}</DialogTitle>
+          </DialogHeader>
+          {previewDoc && (
+            <iframe
+              src={`/api/documents/${previewDoc.id}/preview`}
+              className="w-full h-full"
+              title={previewDoc.title}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </LoadingTransition>
   );
 }
