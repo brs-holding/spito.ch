@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, CheckCircle2, PlayCircle, Plus } from "lucide-react";
+import { Clock, CheckCircle2, PlayCircle, Plus, AlertTriangle, Users } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import {
   Dialog,
@@ -20,31 +20,54 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
-import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { Combobox } from "@/components/ui/combobox";
 
 interface TaskBoardProps {
   userId?: number;
+  patientId?: number;
   minimal?: boolean;
 }
 
-export default function TaskBoard({ userId, minimal = false }: TaskBoardProps) {
+export default function TaskBoard({ userId, patientId, minimal = false }: TaskBoardProps) {
   const { user } = useUser();
+  const { toast } = useToast();
   const [filter, setFilter] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  // Fetch tasks based on context (all tasks, patient-specific, or user-specific)
+  const queryKey = patientId 
+    ? `/api/patients/${patientId}/tasks`
+    : `/api/tasks`;
+
   const { data: tasks, isLoading } = useQuery<Task[]>({
-    queryKey: ["/api/tasks", userId],
+    queryKey: [queryKey],
+  });
+
+  // Fetch available employees for task assignment
+  const { data: employees } = useQuery({
+    queryKey: ['/api/organization/employees'],
+    enabled: user?.role === 'spitex_org' || user?.role === 'super_admin',
+  });
+
+  // Fetch available patients if no specific patient is provided
+  const { data: patients } = useQuery({
+    queryKey: ['/api/patients'],
+    enabled: !patientId && (user?.role === 'spitex_org' || user?.role === 'super_admin'),
   });
 
   const form = useForm({
     defaultValues: {
       title: "",
       description: "",
-      assignedToId: userId || "",
+      assignedToIds: userId ? [userId] : [],
+      patientId: patientId || "",
       dueDate: "",
+      priority: "medium" as const,
     },
   });
 
@@ -63,18 +86,67 @@ export default function TaskBoard({ userId, minimal = false }: TaskBoardProps) {
 
       return response.json();
     },
+    onSuccess: () => {
+      toast({
+        title: "Task created",
+        description: "The task has been created successfully.",
+      });
+      setIsDialogOpen(false);
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
-  const getStatusIcon = (status: string) => {
+  const updateTaskStatusMutation = useMutation({
+    mutationFn: async ({ taskId, status }: { taskId: number; status: string }) => {
+      const response = await fetch(`/api/tasks/${taskId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+  });
+
+  const getStatusIcon = (status: string, priority: string) => {
     switch (status) {
       case "pending":
-        return <Clock className="h-4 w-4 text-yellow-500" />;
+        return priority === "high" ? (
+          <AlertTriangle className="h-4 w-4 text-red-500" />
+        ) : (
+          <Clock className="h-4 w-4 text-yellow-500" />
+        );
       case "in_progress":
         return <PlayCircle className="h-4 w-4 text-blue-500" />;
       case "completed":
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       default:
         return null;
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "text-red-500";
+      case "medium":
+        return "text-yellow-500";
+      case "low":
+        return "text-green-500";
+      default:
+        return "";
     }
   };
 
@@ -86,10 +158,16 @@ export default function TaskBoard({ userId, minimal = false }: TaskBoardProps) {
   const onSubmit = async (data: any) => {
     try {
       await createTaskMutation.mutateAsync(data);
-      setIsDialogOpen(false);
-      form.reset();
     } catch (error) {
       console.error("Failed to create task:", error);
+    }
+  };
+
+  const handleStatusChange = async (taskId: number, newStatus: string) => {
+    try {
+      await updateTaskStatusMutation.mutateAsync({ taskId, status: newStatus });
+    } catch (error) {
+      console.error("Failed to update task status:", error);
     }
   };
 
@@ -136,6 +214,7 @@ export default function TaskBoard({ userId, minimal = false }: TaskBoardProps) {
                             <FormControl>
                               <Input placeholder="Task title" {...field} />
                             </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -148,6 +227,77 @@ export default function TaskBoard({ userId, minimal = false }: TaskBoardProps) {
                             <FormControl>
                               <Textarea placeholder="Task description" {...field} />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {!patientId && (
+                        <FormField
+                          control={form.control}
+                          name="patientId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Patient</FormLabel>
+                              <Select
+                                onValueChange={(value) => field.onChange(parseInt(value))}
+                                value={field.value ? String(field.value) : undefined}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select patient" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {patients?.map((patient) => (
+                                    <SelectItem key={patient.id} value={String(patient.id)}>
+                                      {patient.firstName} {patient.lastName}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      <FormField
+                        control={form.control}
+                        name="assignedToIds"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Assign To</FormLabel>
+                            <Combobox
+                              items={employees?.map(emp => ({
+                                label: emp.fullName,
+                                value: String(emp.id)
+                              })) ?? []}
+                              values={field.value.map(String)}
+                              onChange={(values) => field.onChange(values.map(Number))}
+                              placeholder="Select employees"
+                              multiple
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="priority"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Priority</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select priority" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="low">Low</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -160,6 +310,7 @@ export default function TaskBoard({ userId, minimal = false }: TaskBoardProps) {
                             <FormControl>
                               <Input type="date" {...field} />
                             </FormControl>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -188,7 +339,7 @@ export default function TaskBoard({ userId, minimal = false }: TaskBoardProps) {
                 key={task.id}
                 className="flex items-start gap-4 p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
               >
-                {getStatusIcon(task.status)}
+                {getStatusIcon(task.status, task.priority)}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h4 className="font-medium text-sm truncate">
@@ -206,13 +357,39 @@ export default function TaskBoard({ userId, minimal = false }: TaskBoardProps) {
                     >
                       {task.status.replace("_", " ")}
                     </Badge>
+                    <Badge className={getPriorityColor(task.priority)}>
+                      {task.priority}
+                    </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     {task.description}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Due: {new Date(task.dueDate).toLocaleDateString()}
-                  </p>
+                  <div className="flex items-center gap-4 mt-4">
+                    <p className="text-xs text-muted-foreground">
+                      Due: {new Date(task.dueDate).toLocaleDateString()}
+                    </p>
+                    {task.assignments?.length > 0 && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        {task.assignments.length} assigned
+                      </div>
+                    )}
+                    {!minimal && (
+                      <Select
+                        value={task.status}
+                        onValueChange={(value) => handleStatusChange(task.id, value)}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Update status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

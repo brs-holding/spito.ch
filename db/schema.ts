@@ -169,11 +169,15 @@ export const carePlans = pgTable("care_plans", {
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   carePlanId: integer("care_plan_id").references(() => carePlans.id).notNull(),
-  assignedToId: integer("assigned_to_id").references(() => users.id).notNull(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  createdById: integer("created_by_id").references(() => users.id).notNull(),
   title: text("title").notNull(),
   description: text("description").notNull(),
   dueDate: timestamp("due_date").notNull(),
+  priority: text("priority", { enum: ["high", "medium", "low"] }).notNull().default("medium"),
   status: text("status", { enum: ["pending", "in_progress", "completed"] }).notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const progress = pgTable("progress", {
@@ -225,7 +229,6 @@ export const videoSessions = pgTable("video_sessions", {
   metadata: jsonb("metadata"),
 });
 
-// New table for service logs with billing information
 export const serviceLogs = pgTable("service_logs", {
   id: serial("id").primaryKey(),
   employeeId: integer("employee_id").references(() => users.id).notNull(),
@@ -240,6 +243,13 @@ export const serviceLogs = pgTable("service_logs", {
   }).notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const taskAssignments = pgTable("task_assignments", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  assignedToId: integer("assigned_to_id").references(() => users.id).notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
 });
 
 export const medicationScheduleRelations = relations(medicationSchedules, ({ one, many }) => ({
@@ -266,7 +276,8 @@ export const medicationAdherenceRelations = relations(medicationAdherence, ({ on
 }));
 
 export const userRelations = relations(users, ({ many, one }) => ({
-  assignedTasks: many(tasks),
+  assignedTasks: many(taskAssignments),
+  createdTasks: many(tasks, { relationName: "createdBy" }),
   patient: one(patients, {
     fields: [users.id],
     references: [patients.userId],
@@ -374,6 +385,33 @@ export const serviceLogRelations = relations(serviceLogs, ({ one }) => ({
   }),
 }));
 
+export const taskRelations = relations(tasks, ({ one, many }) => ({
+  carePlan: one(carePlans, {
+    fields: [tasks.carePlanId],
+    references: [carePlans.id],
+  }),
+  patient: one(patients, {
+    fields: [tasks.patientId],
+    references: [patients.id],
+  }),
+  createdBy: one(users, {
+    fields: [tasks.createdById],
+    references: [users.id],
+  }),
+  assignments: many(taskAssignments),
+}));
+
+export const taskAssignmentRelations = relations(taskAssignments, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskAssignments.taskId],
+    references: [tasks.id],
+  }),
+  assignedTo: one(users, {
+    fields: [taskAssignments.assignedToId],
+    references: [users.id],
+  }),
+}));
+
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
@@ -419,9 +457,6 @@ export const selectPatientSchema = createSelectSchema(patients);
 export const insertCarePlanSchema = createInsertSchema(carePlans);
 export const selectCarePlanSchema = createSelectSchema(carePlans);
 
-export const insertTaskSchema = createInsertSchema(tasks);
-export const selectTaskSchema = createSelectSchema(tasks);
-
 export const insertProgressSchema = createInsertSchema(progress);
 export const selectProgressSchema = createSelectSchema(progress);
 
@@ -457,7 +492,6 @@ export const selectOrganizationSchema = createSelectSchema(organizations);
 
 export type Patient = typeof patients.$inferSelect;
 export type CarePlan = typeof carePlans.$inferSelect;
-export type Task = typeof tasks.$inferSelect;
 export type Progress = typeof progress.$inferSelect;
 export type HealthMetric = typeof healthMetrics.$inferSelect;
 export type Medication = typeof medications.$inferSelect;
@@ -480,3 +514,21 @@ export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+export const insertTaskSchema = createInsertSchema(tasks, {
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
+  dueDate: z.string().min(1, "Due date is required"),
+  priority: z.enum(["high", "medium", "low"]),
+  patientId: z.number().min(1, "Patient is required"),
+  assignedToIds: z.array(z.number()).min(1, "At least one assignee is required"),
+});
+
+export const selectTaskSchema = createSelectSchema(tasks);
+export const insertTaskAssignmentSchema = createInsertSchema(taskAssignments);
+export const selectTaskAssignmentSchema = createSelectSchema(taskAssignments);
+
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = typeof tasks.$inferInsert;
+export type TaskAssignment = typeof taskAssignments.$inferSelect;
+export type InsertTaskAssignment = typeof taskAssignments.$inferInsert;

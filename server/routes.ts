@@ -396,6 +396,185 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+  // Tasks Routes
+  app.get("/api/tasks", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      let query = db.select().from(tasks);
+
+      // Filter tasks based on user role and relationships
+      if (req.user.role === "spitex_employee") {
+        // Employees see tasks assigned to them
+        const assignedTasks = await db
+          .select()
+          .from(tasks)
+          .innerJoin(taskAssignments, eq(tasks.id, taskAssignments.taskId))
+          .where(eq(taskAssignments.assignedToId, req.user.id));
+
+        res.json(assignedTasks);
+      } else if (req.user.role === "spitex_org") {
+        // Organizations see tasks of their employees
+        const orgTasks = await db
+          .select()
+          .from(tasks)
+          .innerJoin(users, eq(tasks.createdById, users.id))
+          .where(eq(users.organizationId, req.user.organizationId!));
+
+        res.json(orgTasks);
+      } else if (req.user.role === "super_admin") {
+        // Super admins see all tasks
+        const allTasks = await query;
+        res.json(allTasks);
+      } else {
+        return res.status(403).send("Not authorized to view tasks");
+      }
+    } catch (error: any) {
+      console.error("Error fetching tasks:", error);
+      res.status(500).json({
+        message: "Failed to fetch tasks",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/tasks", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user.role !== "spitex_org" && req.user.role !== "super_admin") {
+      return res.status(403).send("Not authorized to create tasks");
+    }
+
+    try {
+      const { title, description, dueDate, patientId, assignedToIds, priority = "medium" } = req.body;
+
+      // Create the task
+      const [newTask] = await db
+        .insert(tasks)
+        .values({
+          title,
+          description,
+          dueDate: new Date(dueDate),
+          patientId,
+          createdById: req.user.id,
+          priority,
+          status: "pending",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      // Create task assignments
+      const assignments = await Promise.all(
+        assignedToIds.map(async (assignedToId: number) => {
+          const [assignment] = await db
+            .insert(taskAssignments)
+            .values({
+              taskId: newTask.id,
+              assignedToId,
+              assignedAt: new Date(),
+            })
+            .returning();
+          return assignment;
+        })
+      );
+
+      res.json({ ...newTask, assignments });
+    } catch (error: any) {
+      console.error("Error creating task:", error);
+      res.status(500).json({
+        message: "Failed to create task",
+        error: error.message,
+      });
+    }
+  });
+
+  app.patch("/api/tasks/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const taskId = parseInt(req.params.id);
+    const { status } = req.body;
+
+    try {
+      // Check if user is assigned to this task
+      const [assignment] = await db
+        .select()
+        .from(taskAssignments)
+        .where(
+          and(
+            eq(taskAssignments.taskId, taskId),
+            eq(taskAssignments.assignedToId, req.user.id)
+          )
+        )
+        .limit(1);
+
+      if (!assignment && req.user.role !== "spitex_org" && req.user.role !== "super_admin") {
+        return res.status(403).send("Not authorized to update this task");
+      }
+
+      const [updatedTask] = await db
+        .update(tasks)
+        .set({ 
+          status,
+          updatedAt: new Date()
+        })
+        .where(eq(tasks.id, taskId))
+        .returning();
+
+      res.json(updatedTask);
+    } catch (error: any) {
+      console.error("Error updating task status:", error);
+      res.status(500).json({
+        message: "Failed to update task status",
+        error: error.message,
+      });
+    }
+  });
+
+  // Get tasks for a specific patient
+  app.get("/api/patients/:id/tasks", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const patientId = parseInt(req.params.id);
+
+      // Verify access to patient
+      const [patient] = await db
+        .select()
+        .from(patients)
+        .where(eq(patients.id, patientId))
+        .limit(1);
+
+      if (!patient) {
+        return res.status(404).send("Patient not found");
+      }
+
+      // Get tasks for the patient with assignments
+      const patientTasks = await db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.patientId, patientId))
+        .innerJoin(taskAssignments, eq(tasks.id, taskAssignments.taskId))
+        .innerJoin(users, eq(taskAssignments.assignedToId, users.id));
+
+      res.json(patientTasks);
+    } catch (error: any) {
+      console.error("Error fetching patient tasks:", error);
+      res.status(500).json({
+        message: "Failed to fetch patient tasks",
+        error: error.message,
+      });
+    }
+  });
+
   // Notification Routes
   app.get("/api/notifications", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -745,25 +924,6 @@ export function registerRoutes(app: Express): Server {
     res.json(newCarePlan[0]);
   });
 
-  // Tasks
-  app.get("/api/tasks", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-    const userTasks = await db
-      .select()
-      .from(tasks)
-      .where(eq(tasks.assignedToId, req.user!.id));
-    res.json(userTasks);
-  });
-
-  app.post("/api/tasks", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-    const newTask = await db.insert(tasks).values(req.body).returning();
-    res.json(newTask[0]);
-  });
 
   // Progress
   app.get("/api/progress/:carePlanId", async (req, res) => {
