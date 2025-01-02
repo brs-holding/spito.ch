@@ -2,12 +2,32 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { Invoice } from "@db/schema";
 import { useState } from "react";
 import { DataTable } from "@/components/ui/data-table";
 import { columns } from "@/components/invoices/columns";
 import { CreateInvoiceDialog } from "@/components/invoices/CreateInvoiceDialog";
 import { format } from "date-fns";
+
+interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  status: "draft" | "pending" | "paid" | "overdue" | "cancelled";
+  totalAmount: string;
+  createdAt: string;
+  dueDate: string;
+  recipientType: "insurance" | "patient";
+  metadata: {
+    purpose: string;
+    services: Array<{
+      category: string;
+      name: string;
+      hours: number;
+      minutes: number;
+      hourlyRate: number;
+      amount: number;
+    }>;
+  };
+}
 
 export default function InvoicesPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);

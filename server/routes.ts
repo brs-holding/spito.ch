@@ -1016,7 +1016,7 @@ export function registerRoutes(app: Express): Server {
 
   //// Progress
   app.get("/api/progress/:carePlanId", async(req, res) => {
-    if (!req.isAuthenticated()) {
+        if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
     const carePlanProgress = await db
@@ -1342,11 +1342,14 @@ export function registerRoutes(app: Express): Server {
           selbstbehaltAmount: invoices.selbstbehaltAmount,
           createdAt: invoices.createdAt,
           dueDate: invoices.dueDate,
-          metadata: invoices.metadata,
+          startDate: invoices.startDate,
+          endDate: invoices.endDate,
+          recipientType: invoices.recipientType,
           patientId: invoices.patientId,
-          organizationId: invoices.organizationId
+          metadata: invoices.metadata,
         })
-        .from(invoices);
+        .from(invoices)
+        .orderBy(desc(invoices.createdAt));
 
       // Filter invoices based on user role
       if (req.user.role === "spitex_org") {
@@ -1368,9 +1371,6 @@ export function registerRoutes(app: Express): Server {
       } else {
         return res.status(403).send("Not authorized to view invoices");
       }
-
-      // Order by creation date
-      query = query.orderBy(desc(invoices.createdAt));
 
       const invoicesList = await query;
       res.json(invoicesList);
