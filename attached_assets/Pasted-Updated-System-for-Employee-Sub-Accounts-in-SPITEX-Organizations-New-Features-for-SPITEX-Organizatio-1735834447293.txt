@@ -1,0 +1,72 @@
+Updated System for Employee Sub-Accounts in SPITEX Organizations
+New Features for SPITEX Organizations
+Add Employees (Sub-Accounts)
+
+Dashboard Field:
+A dedicated section in the admin dashboard to manage employees.
+Button: “Add Employee.”
+Form Fields:
+Employee Name
+Email Address (login ID)
+Role/Position
+Hourly Rate
+Monthly Fixed Costs (e.g., health insurance, social security, etc.)
+Start Date
+End Date (optional, for temporary employees).
+Employee Overview on Start Page
+
+A summarized table showing all employees under the organization, with the following fields:
+Employee Name
+Hours Worked (calculated from service logs).
+Clients Under Management (count of patients assigned).
+Earnings Generated (total billed for services performed by the employee).
+Cost to Organization (see below for cost calculation).
+Profitability (Earnings - Costs).
+Fields to Pull from Sub-Accounts
+To calculate hours worked, clients under management, and profitability, the system needs the following fields:
+
+Service Logs:
+
+employee_id (FK to identify the employee).
+total_time (hours worked per service).
+patient_id (to identify clients managed).
+billing_code (to determine earnings per service).
+Employee Costs:
+
+Hourly Rate (cost per hour).
+Fixed Monthly Costs:
+Health insurance premiums.
+Employer contributions to AHV/IV/EO (Swiss social security).
+Pension fund contributions (BVG).
+Accident insurance (UVG).
+Family allowances (FZ).
+Other mandatory Swiss employer expenses (e.g., Weiterbildungskosten).
+Profitability Calculation
+Earnings Calculation
+
+Total earnings generated = Sum of billing_amount for all services performed by the employee.
+Costs Calculation
+
+Hourly Costs = Hourly Rate × Hours Worked.
+Fixed Monthly Costs = Sum of all social security and insurance contributions.
+Total Costs = Hourly Costs + Fixed Monthly Costs.
+Profitability
+
+Profit = Earnings Generated - Total Costs.
+Example Overview on Start Page
+Employee Name	Hours Worked	Clients Managed	Earnings Generated (CHF)	Cost to Organization (CHF)	Profit (CHF)
+John Doe	120	10	12,000	8,000	4,000
+Jane Smith	80	7	8,000	6,500	1,500
+Dashboard Additions
+Add Employee Form:
+A form for SPITEX Admins to add employees (sub-accounts).
+
+Auto-generated credentials (e.g., password).
+Fields for cost inputs (social taxes, insurance, hourly rate).
+Employee Overview Section:
+
+Dynamic table pulling real-time data.
+Filters for specific employees, date ranges, or profitability thresholds.
+Detailed Employee Report:
+
+Drill-down view showing services performed, hours worked, and cost breakdown (hourly + fixed costs).

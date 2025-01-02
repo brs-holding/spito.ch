@@ -1,9 +1,8 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
-// Updated roles enum to include all user types
 export const userRoles = [
   "super_admin",
   "spitex_org",
@@ -20,8 +19,12 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: text("role", { enum: userRoles }).notNull().default("family_member"),
   fullName: text("full_name").notNull(),
-  organizationId: integer("organization_id"), // Reference to organizations table
+  organizationId: integer("organization_id"), 
   email: text("email").notNull(),
+  hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
+  monthlyFixedCosts: jsonb("monthly_fixed_costs"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   isActive: boolean("is_active").default(true).notNull(),
 });
@@ -222,6 +225,23 @@ export const videoSessions = pgTable("video_sessions", {
   metadata: jsonb("metadata"),
 });
 
+// New table for service logs with billing information
+export const serviceLogs = pgTable("service_logs", {
+  id: serial("id").primaryKey(),
+  employeeId: integer("employee_id").references(() => users.id).notNull(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  serviceDate: timestamp("service_date").notNull(),
+  duration: integer("duration").notNull(), 
+  billingCode: text("billing_code").notNull(),
+  billingAmount: decimal("billing_amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  status: text("status", {
+    enum: ["pending", "billed", "paid", "cancelled"]
+  }).notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const medicationScheduleRelations = relations(medicationSchedules, ({ one, many }) => ({
   medication: one(medications, {
     fields: [medicationSchedules.medicationId],
@@ -257,6 +277,7 @@ export const userRelations = relations(users, ({ many, one }) => ({
   }),
   providedAppointments: many(appointments, { relationName: "provider" }),
   schedules: many(providerSchedules),
+  serviceLogs: many(serviceLogs, { relationName: "employee" }),
 }));
 
 export const patientRelations = relations(patients, ({ one, many }) => ({
@@ -338,6 +359,18 @@ export const providerSchedulesRelations = relations(providerSchedules, ({ one })
 
 export const organizationRelations = relations(organizations, ({ many }) => ({
   users: many(users),
+  employees: many(users),
+}));
+
+export const serviceLogRelations = relations(serviceLogs, ({ one }) => ({
+  employee: one(users, {
+    fields: [serviceLogs.employeeId],
+    references: [users.id],
+  }),
+  patient: one(patients, {
+    fields: [serviceLogs.patientId],
+    references: [patients.id],
+  }),
 }));
 
 
@@ -352,6 +385,17 @@ export const insertUserSchema = createInsertSchema(users, {
   fullName: z.string().min(1, "Full name is required"),
   email: z.string().email("Valid email is required"),
   organizationId: z.number().optional(),
+  hourlyRate: z.number().optional(),
+  monthlyFixedCosts: z.object({
+    healthInsurance: z.number().optional(),
+    socialSecurity: z.number().optional(),
+    pensionFund: z.number().optional(),
+    accidentInsurance: z.number().optional(),
+    familyAllowances: z.number().optional(),
+    otherExpenses: z.number().optional(),
+  }).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 export const selectUserSchema = createSelectSchema(users);
@@ -415,3 +459,8 @@ export type PatientDocument = typeof patientDocuments.$inferSelect;
 export type VisitLog = typeof visitLogs.$inferSelect;
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = typeof organizations.$inferInsert;
+
+export const insertServiceLogSchema = createInsertSchema(serviceLogs);
+export const selectServiceLogSchema = createSelectSchema(serviceLogs);
+export type ServiceLog = typeof serviceLogs.$inferSelect;
+export type InsertServiceLog = typeof serviceLogs.$inferInsert;

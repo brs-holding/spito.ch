@@ -18,8 +18,10 @@ import {
   patientDocuments,
   visitLogs,
   videoSessions,
+  serviceLogs,
+  insertUserSchema,
 } from "@db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -29,6 +31,190 @@ const __dirname = dirname(__filename);
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Employee Management Routes for SPITEX Organizations
+  app.get("/api/organization/employees", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "spitex_org") {
+      return res.status(403).send("Not authorized");
+    }
+
+    try {
+      const employees = await db
+        .select()
+        .from(users)
+        .where(eq(users.organizationId, req.user.organizationId!));
+
+      const employeePerformance = await Promise.all(
+        employees.map(async (employee) => {
+          // Get service logs for employee
+          const logs = await db
+            .select({
+              totalHours: sql<number>`sum(${serviceLogs.duration}) / 60.0`,
+              totalBilled: sql<number>`sum(${serviceLogs.billingAmount})`,
+              patientCount: sql<number>`count(distinct ${serviceLogs.patientId})`,
+            })
+            .from(serviceLogs)
+            .where(eq(serviceLogs.employeeId, employee.id))
+            .limit(1);
+
+          const hourlyRate = employee.hourlyRate || 0;
+          const monthlyFixedCosts = employee.monthlyFixedCosts || {};
+          const totalFixedCosts = Object.values(monthlyFixedCosts).reduce((sum, cost) => sum + (cost || 0), 0);
+
+          const totalCosts = (logs[0]?.totalHours || 0) * hourlyRate + totalFixedCosts;
+          const profit = (logs[0]?.totalBilled || 0) - totalCosts;
+
+          return {
+            ...employee,
+            performance: {
+              hoursWorked: logs[0]?.totalHours || 0,
+              clientsManaged: logs[0]?.patientCount || 0,
+              earningsGenerated: logs[0]?.totalBilled || 0,
+              costs: totalCosts,
+              profit,
+            }
+          };
+        })
+      );
+
+      res.json(employeePerformance);
+    } catch (error: any) {
+      console.error("Error fetching employees:", error);
+      res.status(500).json({
+        message: "Failed to fetch employees",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/organization/employees", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "spitex_org") {
+      return res.status(403).send("Not authorized");
+    }
+
+    try {
+      const result = insertUserSchema.safeParse({
+        ...req.body,
+        role: "spitex_employee",
+        organizationId: req.user.organizationId,
+      });
+
+      if (!result.success) {
+        return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
+      }
+
+      const [newEmployee] = await db
+        .insert(users)
+        .values(result.data)
+        .returning();
+
+      res.json(newEmployee);
+    } catch (error: any) {
+      console.error("Error creating employee:", error);
+      res.status(500).json({
+        message: "Failed to create employee",
+        error: error.message,
+      });
+    }
+  });
+
+  app.put("/api/organization/employees/:id", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "spitex_org") {
+      return res.status(403).send("Not authorized");
+    }
+
+    try {
+      const employeeId = parseInt(req.params.id);
+
+      // Verify employee belongs to organization
+      const [employee] = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.id, employeeId),
+            eq(users.organizationId, req.user.organizationId!)
+          )
+        )
+        .limit(1);
+
+      if (!employee) {
+        return res.status(404).send("Employee not found");
+      }
+
+      const [updatedEmployee] = await db
+        .update(users)
+        .set(req.body)
+        .where(eq(users.id, employeeId))
+        .returning();
+
+      res.json(updatedEmployee);
+    } catch (error: any) {
+      console.error("Error updating employee:", error);
+      res.status(500).json({
+        message: "Failed to update employee",
+        error: error.message,
+      });
+    }
+  });
+
+  // Service Logs Routes
+  app.get("/api/service-logs", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      let query = db.select().from(serviceLogs);
+
+      if (req.user.role === "spitex_employee") {
+        // Employees can only see their own logs
+        query = query.where(eq(serviceLogs.employeeId, req.user.id));
+      } else if (req.user.role === "spitex_org") {
+        // Organizations can see logs of all their employees
+        query = query.where(
+          eq(serviceLogs.employeeId, req.user.organizationId!)
+        );
+      }
+
+      const logs = await query;
+      res.json(logs);
+    } catch (error: any) {
+      console.error("Error fetching service logs:", error);
+      res.status(500).json({
+        message: "Failed to fetch service logs",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/service-logs", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const employeeId = req.user.role === "spitex_employee" 
+        ? req.user.id 
+        : req.body.employeeId;
+
+      const [newLog] = await db
+        .insert(serviceLogs)
+        .values({
+          ...req.body,
+          employeeId,
+        })
+        .returning();
+
+      res.json(newLog);
+    } catch (error: any) {
+      console.error("Error creating service log:", error);
+      res.status(500).json({
+        message: "Failed to create service log",
+        error: error.message,
+      });
+    }
+  });
 
   // Provider Schedule Routes
   app.get("/api/provider-schedules", async (req, res) => {
@@ -57,7 +243,6 @@ export function registerRoutes(app: Express): Server {
       });
     }
   });
-
   // Appointment Routes
   app.get("/api/appointments", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -357,7 +542,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  //NEW ROUTES ADDED HERE
   app.get("/api/documents/:id/preview", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
