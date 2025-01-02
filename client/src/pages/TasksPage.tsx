@@ -1,5 +1,5 @@
 import { useUser } from "@/hooks/use-user";
-import TaskBoard from "@/components/dashboard/TaskBoard";
+import TaskBoard from "@/components/tasks/TaskBoard";
 
 export default function TasksPage() {
   const { user } = useUser();
@@ -11,7 +11,7 @@ export default function TasksPage() {
       </div>
 
       <div className="grid gap-6">
-        <TaskBoard userId={user?.id} />
+        <TaskBoard />
       </div>
     </div>
   );
