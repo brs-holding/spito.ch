@@ -132,37 +132,48 @@ export default function PatientRegistrationForm() {
       try {
         let processedData = { ...formData };
 
-        if (step === 0 && formData.dateOfBirth) {
-          const dateOfBirth = new Date(formData.dateOfBirth);
-          dateOfBirth.setMinutes(dateOfBirth.getMinutes() - dateOfBirth.getTimezoneOffset());
-          processedData.dateOfBirth = dateOfBirth.toISOString();
-        }
-
-        if (step === 3 && formData.contract?.dateOfSigning) {
-          const dateOfSigning = new Date(formData.contract.dateOfSigning);
-          dateOfSigning.setMinutes(dateOfSigning.getMinutes() - dateOfSigning.getTimezoneOffset());
+        if (step === 0) {
+          // For basic info step, ensure all required fields are present
           processedData = {
-            ...processedData,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : undefined,
+            gender: formData.gender,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            emergencyContact: formData.emergencyContact,
+          };
+        } else if (step === 1) {
+          // For medical info step
+          processedData = {
+            medicalHistory: formData.medicalHistory,
+            currentDiagnoses: Array.isArray(formData.currentDiagnoses)
+              ? formData.currentDiagnoses
+              : String(formData.currentDiagnoses || '').split(',').map(item => item.trim()).filter(Boolean),
+            allergies: Array.isArray(formData.allergies)
+              ? formData.allergies
+              : String(formData.allergies || '').split(',').map(item => item.trim()).filter(Boolean),
+            primaryPhysicianContact: formData.primaryPhysicianContact,
+          };
+        } else if (step === 2) {
+          // For documents step
+          processedData = {
+            documents: formData.documents,
+          };
+        } else if (step === 3) {
+          // For contract step
+          processedData = {
             contract: {
-              ...processedData.contract,
-              dateOfSigning: dateOfSigning.toISOString(),
+              ...formData.contract,
+              dateOfSigning: formData.contract?.dateOfSigning
+                ? new Date(formData.contract.dateOfSigning).toISOString()
+                : undefined,
             },
           };
         }
 
-        if (step === 1) {
-          if (formData.currentDiagnoses) {
-            processedData.currentDiagnoses = Array.isArray(formData.currentDiagnoses)
-              ? formData.currentDiagnoses
-              : String(formData.currentDiagnoses).split(',').map(item => item.trim()).filter(Boolean);
-          }
-          if (formData.allergies) {
-            processedData.allergies = Array.isArray(formData.allergies)
-              ? formData.allergies
-              : String(formData.allergies).split(',').map(item => item.trim()).filter(Boolean);
-          }
-        }
-
+        // Convert processedData to FormData
         const fd = new FormData();
         Object.entries(processedData).forEach(([key, value]) => {
           if (value !== undefined) {
@@ -171,11 +182,15 @@ export default function PatientRegistrationForm() {
               if (docs.healthInsurance) {
                 fd.append('healthInsurance', docs.healthInsurance);
               }
-              docs.otherDocuments?.forEach(file => {
-                fd.append('otherDocuments', file);
-              });
-            } else {
+              if (docs.otherDocuments?.length) {
+                docs.otherDocuments.forEach(file => {
+                  fd.append('otherDocuments', file);
+                });
+              }
+            } else if (typeof value === 'object' && value !== null && !(value instanceof File)) {
               fd.append(key, JSON.stringify(value));
+            } else {
+              fd.append(key, String(value));
             }
           }
         });
@@ -191,8 +206,7 @@ export default function PatientRegistrationForm() {
           throw new Error(errorData.message || 'Failed to save patient data');
         }
 
-        const result = await response.json();
-        return result;
+        return await response.json();
       } catch (error) {
         console.error("Error saving step:", error);
         throw error;
@@ -225,7 +239,7 @@ export default function PatientRegistrationForm() {
 
   const getFieldsForStep = (step: number) => {
     switch (step) {
-      case 0: 
+      case 0:
         return [
           "firstName",
           "lastName",
@@ -241,7 +255,7 @@ export default function PatientRegistrationForm() {
           "emergencyContact.relationship",
           "emergencyContact.phone",
         ];
-      case 1: 
+      case 1:
         return [
           "medicalHistory",
           "currentDiagnoses",
@@ -250,11 +264,11 @@ export default function PatientRegistrationForm() {
           "primaryPhysicianContact.phone",
           "primaryPhysicianContact.email",
         ];
-      case 2: 
+      case 2:
         return ["documents.healthInsurance", "documents.otherDocuments"];
-      case 3: 
+      case 3:
         return ["contract.signature", "contract.dateOfSigning", "contract.termsAccepted"];
-      case 4: 
+      case 4:
         return ["preferences", "familyAccess"];
       default:
         return [];
@@ -303,10 +317,10 @@ export default function PatientRegistrationForm() {
 
   async function onSubmit(data: PatientFormValues) {
     try {
-      await saveStep.mutateAsync({ 
+      await saveStep.mutateAsync({
         preferences: data.preferences,
         familyAccess: data.familyAccess,
-        step: activeStep 
+        step: activeStep
       });
 
       form.reset();
@@ -860,8 +874,8 @@ export default function PatientRegistrationForm() {
               {saveStep.isPending ? "Registering..." : "Register Patient"}
             </Button>
           ) : (
-            <Button 
-              type="button" 
+            <Button
+              type="button"
               onClick={handleNext}
               disabled={saveStep.isPending}
             >

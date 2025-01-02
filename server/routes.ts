@@ -71,26 +71,16 @@ export function registerRoutes(app: Express): Server {
         }
       });
 
-      // Handle dateOfBirth if present
-      if (patientData.dateOfBirth) {
-        try {
-          const dateOfBirth = new Date(patientData.dateOfBirth);
-          if (isNaN(dateOfBirth.getTime())) {
-            throw new Error("Invalid date of birth");
-          }
-          patientData.dateOfBirth = dateOfBirth;
-        } catch (error) {
-          return res.status(400).json({
-            message: "Failed to create patient",
-            error: "Invalid date of birth format",
-          });
-        }
-      }
-
       // Convert field names to database column names
       if (patientData.firstName) patientData.first_name = patientData.firstName;
       if (patientData.lastName) patientData.last_name = patientData.lastName;
-      if (patientData.dateOfBirth) patientData.date_of_birth = patientData.dateOfBirth;
+      if (patientData.dateOfBirth) {
+        const dateOfBirth = new Date(patientData.dateOfBirth);
+        if (isNaN(dateOfBirth.getTime())) {
+          throw new Error("Invalid date of birth");
+        }
+        patientData.date_of_birth = dateOfBirth;
+      }
 
       // Add timestamps
       patientData.created_at = new Date();
