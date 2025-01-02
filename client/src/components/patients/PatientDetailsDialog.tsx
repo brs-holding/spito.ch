@@ -1,13 +1,27 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import AppointmentScheduler from "../appointments/AppointmentScheduler";
 import { Patient } from "@db/schema";
 import {
@@ -18,10 +32,15 @@ import {
   FileText,
   Calendar,
   AlertCircle,
+  Edit2,
+  Trash2,
+  Save,
+  X,
 } from "lucide-react";
 import { LoadingTransition } from "@/components/ui/LoadingTransition";
 import DocumentUpload from "./DocumentUpload";
 import DocumentList from "./DocumentList";
+import { useForm } from "react-hook-form";
 
 interface PatientDetailsDialogProps {
   patient: Patient | null;
@@ -35,11 +54,97 @@ export default function PatientDetailsDialog({
   onClose,
 }: PatientDetailsDialogProps) {
   const [activeTab, setActiveTab] = useState("basic");
+  const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: appointments } = useQuery({
     queryKey: [`/api/appointments/${patient?.id}`],
     enabled: !!patient,
   });
+
+  const form = useForm({
+    defaultValues: {
+      firstName: patient?.firstName || "",
+      lastName: patient?.lastName || "",
+      dateOfBirth: patient?.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().split('T')[0] : "",
+      email: patient?.email || "",
+      phone: patient?.phone || "",
+      address: patient?.address ? JSON.stringify(patient.address) : "",
+      emergencyContact: patient?.emergencyContact ? JSON.stringify(patient.emergencyContact) : "",
+      medicalHistory: patient?.medicalHistory || "",
+      currentDiagnoses: patient?.currentDiagnoses || [],
+      allergies: patient?.allergies || [],
+    },
+  });
+
+  const updatePatientMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch(`/api/patients/${patient?.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
+      setIsEditing(false);
+      toast({
+        title: "Success",
+        description: "Patient information updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePatientMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/patients/${patient?.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
+      setShowDeleteDialog(false);
+      onClose();
+      toast({
+        title: "Success",
+        description: "Patient deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: any) => {
+    updatePatientMutation.mutate(data);
+  };
 
   if (!patient) return null;
 
@@ -52,198 +157,302 @@ export default function PatientDetailsDialog({
     : patient.emergencyContact;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">
-            {patient.firstName} {patient.lastName}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <DialogTitle className="text-2xl">
+                {patient.firstName} {patient.lastName}
+              </DialogTitle>
+              <div className="flex gap-2">
+                {isEditing ? (
+                  <>
+                    <Button onClick={() => setIsEditing(false)} variant="outline">
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                    <Button onClick={form.handleSubmit(onSubmit)}>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button onClick={() => setIsEditing(true)} variant="outline">
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button onClick={() => setShowDeleteDialog(true)} variant="destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
 
-        <LoadingTransition>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-4">
-              <TabsTrigger value="basic">
-                <User className="h-4 w-4 mr-2" />
-                Basic Info
-              </TabsTrigger>
-              <TabsTrigger value="medical">
-                <AlertCircle className="h-4 w-4 mr-2" />
-                Medical
-              </TabsTrigger>
-              <TabsTrigger value="appointments">
-                <Calendar className="h-4 w-4 mr-2" />
-                Appointments
-              </TabsTrigger>
-              <TabsTrigger value="documents">
-                <FileText className="h-4 w-4 mr-2" />
-                Documents
-              </TabsTrigger>
-            </TabsList>
+          <LoadingTransition>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid grid-cols-4">
+                <TabsTrigger value="basic">
+                  <User className="h-4 w-4 mr-2" />
+                  Basic Info
+                </TabsTrigger>
+                <TabsTrigger value="medical">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Medical
+                </TabsTrigger>
+                <TabsTrigger value="appointments">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Appointments
+                </TabsTrigger>
+                <TabsTrigger value="documents">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Documents
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="basic" className="space-y-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Full Name</p>
-                      <p className="font-medium">
-                        {patient.firstName} {patient.lastName}
-                      </p>
+              <TabsContent value="basic" className="space-y-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">First Name</p>
+                        {isEditing ? (
+                          <Input {...form.register("firstName")} />
+                        ) : (
+                          <p className="font-medium">{patient.firstName}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Last Name</p>
+                        {isEditing ? (
+                          <Input {...form.register("lastName")} />
+                        ) : (
+                          <p className="font-medium">{patient.lastName}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Date of Birth</p>
+                        {isEditing ? (
+                          <Input type="date" {...form.register("dateOfBirth")} />
+                        ) : (
+                          <p className="font-medium">
+                            {new Date(patient.dateOfBirth).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        {isEditing ? (
+                          <Input type="email" {...form.register("email")} />
+                        ) : (
+                          <p className="font-medium">{patient.email}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Phone</p>
+                        {isEditing ? (
+                          <Input {...form.register("phone")} />
+                        ) : (
+                          <p className="font-medium">{patient.phone}</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Date of Birth</p>
-                      <p className="font-medium">
-                        {new Date(patient.dateOfBirth).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <p className="font-medium">{patient.email}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Phone</p>
-                      <p className="font-medium">{patient.phone}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-medium mb-4">Address</h3>
-                  <div className="space-y-2">
-                    <p>{address.street}</p>
-                    <p>
-                      {address.city}, {address.state} {address.zipCode}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-medium mb-4">Emergency Contact</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Name</p>
-                      <p className="font-medium">{emergencyContact.name}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Relationship</p>
-                      <p className="font-medium">{emergencyContact.relationship}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Phone</p>
-                      <p className="font-medium">{emergencyContact.phone}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="medical" className="space-y-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-medium mb-4">Medical History</h3>
-                  <p className="text-muted-foreground">
-                    {patient.medicalHistory || "No medical history recorded"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-medium mb-4">Current Diagnoses</h3>
-                  <div className="space-y-2">
-                    {patient.currentDiagnoses?.length > 0 ? (
-                      patient.currentDiagnoses.map((diagnosis: string, index: number) => (
-                        <p key={index}>{diagnosis}</p>
-                      ))
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-medium mb-4">Address</h3>
+                    {isEditing ? (
+                      <Input
+                        {...form.register("address")}
+                        placeholder="Enter address as JSON"
+                      />
                     ) : (
-                      <p className="text-muted-foreground">No current diagnoses</p>
+                      <div className="space-y-2">
+                        <p>{address.street}</p>
+                        <p>
+                          {address.city}, {address.state} {address.zipCode}
+                        </p>
+                      </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-medium mb-4">Allergies</h3>
-                  <div className="space-y-2">
-                    {patient.allergies?.length > 0 ? (
-                      patient.allergies.map((allergy: string, index: number) => (
-                        <p key={index}>{allergy}</p>
-                      ))
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-medium mb-4">Emergency Contact</h3>
+                    {isEditing ? (
+                      <Input
+                        {...form.register("emergencyContact")}
+                        placeholder="Enter emergency contact as JSON"
+                      />
                     ) : (
-                      <p className="text-muted-foreground">No known allergies</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="appointments" className="space-y-4">
-              <AppointmentScheduler patient={patient} />
-
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-medium mb-4">Appointment History</h3>
-                  {appointments?.length > 0 ? (
-                    <div className="space-y-4">
-                      {appointments.map((apt: any) => (
-                        <div
-                          key={apt.id}
-                          className="flex items-center justify-between border-b pb-4"
-                        >
-                          <div>
-                            <p className="font-medium">
-                              {new Date(apt.scheduledFor).toLocaleDateString()}{" "}
-                              {new Date(apt.scheduledFor).toLocaleTimeString()}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {apt.type}
-                            </p>
-                          </div>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs ${
-                              apt.status === "completed"
-                                ? "bg-green-100 text-green-800"
-                                : apt.status === "cancelled"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-blue-100 text-blue-800"
-                            }`}
-                          >
-                            {apt.status}
-                          </span>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground">Name</p>
+                          <p className="font-medium">{emergencyContact.name}</p>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No appointment history</p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground">Relationship</p>
+                          <p className="font-medium">{emergencyContact.relationship}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground">Phone</p>
+                          <p className="font-medium">{emergencyContact.phone}</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            <TabsContent value="documents" className="space-y-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-medium mb-4">Dokumente</h3>
-                  <DocumentUpload patientId={patient.id} />
-                </CardContent>
-              </Card>
+              <TabsContent value="medical" className="space-y-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-medium mb-4">Medical History</h3>
+                    {isEditing ? (
+                      <Input {...form.register("medicalHistory")} />
+                    ) : (
+                      <p className="text-muted-foreground">
+                        {patient.medicalHistory || "No medical history recorded"}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-medium mb-4">Dokumentenliste</h3>
-                  <DocumentList patientId={patient.id} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </LoadingTransition>
-      </DialogContent>
-    </Dialog>
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-medium mb-4">Current Diagnoses</h3>
+                    {isEditing ? (
+                      <Input
+                        {...form.register("currentDiagnoses")}
+                        placeholder="Enter diagnoses as comma-separated values"
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        {patient.currentDiagnoses?.length > 0 ? (
+                          patient.currentDiagnoses.map((diagnosis: string, index: number) => (
+                            <p key={index}>{diagnosis}</p>
+                          ))
+                        ) : (
+                          <p className="text-muted-foreground">No current diagnoses</p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-medium mb-4">Allergies</h3>
+                    {isEditing ? (
+                      <Input
+                        {...form.register("allergies")}
+                        placeholder="Enter allergies as comma-separated values"
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        {patient.allergies?.length > 0 ? (
+                          patient.allergies.map((allergy: string, index: number) => (
+                            <p key={index}>{allergy}</p>
+                          ))
+                        ) : (
+                          <p className="text-muted-foreground">No known allergies</p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="appointments" className="space-y-4">
+                <AppointmentScheduler patient={patient} />
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-medium mb-4">Appointment History</h3>
+                    {appointments?.length > 0 ? (
+                      <div className="space-y-4">
+                        {appointments.map((apt: any) => (
+                          <div
+                            key={apt.id}
+                            className="flex items-center justify-between border-b pb-4"
+                          >
+                            <div>
+                              <p className="font-medium">
+                                {new Date(apt.scheduledFor).toLocaleDateString()}{" "}
+                                {new Date(apt.scheduledFor).toLocaleTimeString()}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {apt.type}
+                              </p>
+                            </div>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${
+                                apt.status === "completed"
+                                  ? "bg-green-100 text-green-800"
+                                  : apt.status === "cancelled"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-blue-100 text-blue-800"
+                              }`}
+                            >
+                              {apt.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">No appointment history</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="documents" className="space-y-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-medium mb-4">Documents</h3>
+                    <DocumentUpload patientId={patient.id} />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-medium mb-4">Document List</h3>
+                    <DocumentList patientId={patient.id} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </LoadingTransition>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this patient?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the patient's
+              record and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletePatientMutation.mutate()}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

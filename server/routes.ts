@@ -647,7 +647,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Patient Profile Routes
+  // Patient Profile Routes (UPDATED)
   app.get("/api/patients", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -658,7 +658,7 @@ export function registerRoutes(app: Express): Server {
 
       // Filter patients based on user role and organization
       if (req.user.role === "spitex_org" || req.user.role === "spitex_employee") {
-        // Get organization's patients - removing the join with users since patients might not have userId yet
+        // Get organization's patients
         query = db
           .select({
             id: patients.id,
@@ -716,6 +716,87 @@ export function registerRoutes(app: Express): Server {
     res.json(patient);
   });
 
+  // Update patient endpoint (NEW)
+  app.put("/api/patients/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user.role !== "spitex_org" && req.user.role !== "spitex_employee") {
+      return res.status(403).send("Not authorized to update patient data");
+    }
+
+    try {
+      const patientId = parseInt(req.params.id);
+      const [existingPatient] = await db
+        .select()
+        .from(patients)
+        .where(eq(patients.id, patientId))
+        .limit(1);
+
+      if (!existingPatient) {
+        return res.status(404).send("Patient not found");
+      }
+
+      const updateData = {
+        ...req.body,
+        dateOfBirth: new Date(req.body.dateOfBirth),
+        updatedAt: new Date(),
+      };
+
+      const [updatedPatient] = await db
+        .update(patients)
+        .set(updateData)
+        .where(eq(patients.id, patientId))
+        .returning();
+
+      res.json(updatedPatient);
+    } catch (error: any) {
+      console.error("Error updating patient:", error);
+      res.status(500).json({
+        message: "Failed to update patient",
+        error: error.message,
+      });
+    }
+  });
+
+  // Delete patient endpoint (NEW)
+  app.delete("/api/patients/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user.role !== "spitex_org") {
+      return res.status(403).send("Not authorized to delete patients");
+    }
+
+    try {
+      const patientId = parseInt(req.params.id);
+      const [existingPatient] = await db
+        .select()
+        .from(patients)
+        .where(eq(patients.id, patientId))
+        .limit(1);
+
+      if (!existingPatient) {
+        return res.status(404).send("Patient not found");
+      }
+
+      const [deletedPatient] = await db
+        .delete(patients)
+        .where(eq(patients.id, patientId))
+        .returning();
+
+      res.json({ message: "Patient deleted successfully", patient: deletedPatient });
+    } catch (error: any) {
+      console.error("Error deleting patient:", error);
+      res.status(500).json({
+        message: "Failed to delete patient",
+        error: error.message,
+      });
+    }
+  });
+
   app.post("/api/patients", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -744,17 +825,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.put("/api/patients/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-    const [updatedPatient] = await db
-      .update(patients)
-      .set(req.body)
-      .where(eq(patients.id, parseInt(req.params.id)))
-      .returning();
-    res.json(updatedPatient);
-  });
 
   // Insurance Details Routes
   app.get("/api/patients/:id/insurance", async (req, res) => {
@@ -1010,7 +1080,8 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
-    const [patient] = await db      .select()
+    const [patient] = await db
+      .select()
       .from(patients)
       .where(eq(patients.userId, req.user!.id))
       .limit(1);
@@ -1019,7 +1090,8 @@ export function registerRoutes(app: Express): Server {
       return res.status(404).send("Patient profile not found");
     }
 
-    const newAdherence = await db      .insert(medicationAdherence)
+    const newAdherence = await db
+      .insert(medicationAdherence)
       .values(req.body)
       .returning();
 
