@@ -9,12 +9,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { Logo } from "./Logo";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useUser } from "@/hooks/use-user";
 import CarePlansDialog from "./CarePlansDialog";
 import ScheduleDialog from "./ScheduleDialog";
 import SettingsDialog from "./SettingsDialog";
 
 export default function Header() {
   const [openDialog, setOpenDialog] = useState<'carePlans' | 'schedule' | 'settings' | null>(null);
+  const { user } = useUser();
 
   return (
     <>
@@ -55,17 +58,28 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Auth Links */}
+          {/* Auth Links & Notifications */}
           <div className="flex items-center space-x-4">
-            <Link href="/pricing" className="text-sm font-medium hover:text-primary">
-              Pricing
-            </Link>
-            <Link href="/login" className="text-sm font-medium hover:text-primary">
-              Login
-            </Link>
-            <Link href="/register">
-              <Button size="sm">Register</Button>
-            </Link>
+            {user ? (
+              <>
+                <NotificationCenter />
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/logout">Logout</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/pricing" className="text-sm font-medium hover:text-primary">
+                  Pricing
+                </Link>
+                <Link href="/login" className="text-sm font-medium hover:text-primary">
+                  Login
+                </Link>
+                <Link href="/register">
+                  <Button size="sm">Register</Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>

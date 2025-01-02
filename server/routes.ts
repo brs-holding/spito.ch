@@ -21,8 +21,9 @@ import {
   patientDocuments,
   visitLogs,
   videoSessions,
+  notifications, // Assuming this import is correct
 } from "@db/schema";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -394,6 +395,58 @@ export function registerRoutes(app: Express): Server {
     res.json(updatedAppointment);
   });
 
+
+  // Notification Routes
+  app.get("/api/notifications", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const userNotifications = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.userId, req.user!.id))
+        .orderBy(desc(notifications.createdAt));
+
+      res.json(userNotifications);
+    } catch (error: any) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({
+        message: "Failed to fetch notifications",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/notifications/read", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const { notificationId } = req.body;
+
+    try {
+      const [updatedNotification] = await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(
+          and(
+            eq(notifications.id, notificationId),
+            eq(notifications.userId, req.user!.id)
+          )
+        )
+        .returning();
+
+      res.json(updatedNotification);
+    } catch (error: any) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({
+        message: "Failed to mark notification as read",
+        error: error.message,
+      });
+    }
+  });
 
   // Patient Profile Routes
   app.get("/api/patients", async (req, res) => {

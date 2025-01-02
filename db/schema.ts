@@ -278,6 +278,7 @@ export const userRelations = relations(users, ({ many, one }) => ({
   providedAppointments: many(appointments, { relationName: "provider" }),
   schedules: many(providerSchedules),
   serviceLogs: many(serviceLogs, { relationName: "employee" }),
+  notifications: many(notifications),
 }));
 
 export const patientRelations = relations(patients, ({ one, many }) => ({
@@ -374,6 +375,16 @@ export const serviceLogRelations = relations(serviceLogs, ({ one }) => ({
 }));
 
 
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  priority: text("priority", { enum: ["high", "medium", "low"] }).notNull().default("medium"),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertProviderScheduleSchema = createInsertSchema(providerSchedules);
 export const selectProviderScheduleSchema = createSelectSchema(providerSchedules);
 export type ProviderSchedule = typeof providerSchedules.$inferSelect;
@@ -464,3 +475,8 @@ export const insertServiceLogSchema = createInsertSchema(serviceLogs);
 export const selectServiceLogSchema = createSelectSchema(serviceLogs);
 export type ServiceLog = typeof serviceLogs.$inferSelect;
 export type InsertServiceLog = typeof serviceLogs.$inferInsert;
+
+export const insertNotificationSchema = createInsertSchema(notifications);
+export const selectNotificationSchema = createSelectSchema(notifications);
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
