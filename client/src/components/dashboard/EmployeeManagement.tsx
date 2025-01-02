@@ -29,6 +29,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import SubUserOverview from "./SubUserOverview";
+import EmployeeDetailsDialog from "./EmployeeDetailsDialog"; // Added import
 import { queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 
@@ -37,7 +38,7 @@ const employeeSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Valid email is required"),
-  fullName: z.string().min(1, "Full name is required"), // Added back as it's required
+  fullName: z.string().min(1, "Full name is required"),
 });
 
 type EmployeeFormData = z.infer<typeof employeeSchema>;
@@ -45,6 +46,7 @@ type EmployeeFormData = z.infer<typeof employeeSchema>;
 export function EmployeeManagement() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null); // Added state
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
@@ -219,7 +221,11 @@ export function EmployeeManagement() {
         </TableHeader>
         <TableBody>
           {employees?.map((employee: any) => (
-            <TableRow key={employee.id}>
+            <TableRow 
+              key={employee.id}
+              className="cursor-pointer hover:bg-accent/50"
+              onClick={() => setSelectedEmployee(employee)} // Added onClick handler
+            >
               <TableCell>{employee.username}</TableCell>
               <TableCell>{employee.fullName}</TableCell>
               <TableCell>{employee.email}</TableCell>
@@ -228,6 +234,12 @@ export function EmployeeManagement() {
           ))}
         </TableBody>
       </Table>
+
+      <EmployeeDetailsDialog 
+        employee={selectedEmployee}
+        open={!!selectedEmployee}
+        onClose={() => setSelectedEmployee(null)}
+      /> {/* Added EmployeeDetailsDialog */}
     </div>
   );
 }
