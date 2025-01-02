@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
+import { Logo } from "@/components/ui/Logo";
 
 type FormData = {
   username: string;
@@ -22,7 +23,10 @@ export default function AuthPage() {
   const onSubmit = async (data: FormData) => {
     try {
       if (isRegister) {
-        const result = await registerUser(data);
+        const result = await registerUser({
+          ...data,
+          fullName: data.fullName || '', // Ensure fullName is provided
+        });
         if (!result.ok) {
           throw new Error(result.message);
         }
@@ -42,8 +46,11 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
       <div className="w-full max-w-md px-4">
+        <div className="mb-8 flex justify-center">
+          <Logo size="lg" />
+        </div>
         <Card>
           <CardHeader>
             <CardTitle>{isRegister ? "Register" : "Login"}</CardTitle>

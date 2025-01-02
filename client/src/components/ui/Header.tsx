@@ -7,10 +7,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
+import { Logo } from "./Logo";
 
 export default function Header() {
   return (
-    <header className="border-b">
+    <header className="border-b fixed w-full bg-background z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Navigation Links */}
         <nav className="flex items-center space-x-4">
@@ -36,8 +37,8 @@ export default function Header() {
 
         {/* Logo */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <Link href="/" className="text-2xl font-bold tracking-tighter">
-            SPITO.CH
+          <Link href="/">
+            <Logo size="sm" />
           </Link>
         </div>
 
