@@ -33,23 +33,24 @@ import { Separator } from "@/components/ui/separator";
 import { queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 
+// Match schema with backend expectations
 const employeeSchema = z.object({
-  fullName: z.string().min(1, "Full name is required"),
-  email: z.string().email("Valid email is required"),
   username: z.string().min(1, "Username is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  fullName: z.string().min(1, "Full name is required"),
+  email: z.string().email("Valid email is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
   address: z.string().min(1, "Address is required"),
   zipCode: z.string().min(1, "ZIP code is required"),
   city: z.string().min(1, "City is required"),
-  hourlyRate: z.number().min(0, "Hourly rate must be positive").optional().nullable(),
+  hourlyRate: z.number().min(0, "Hourly rate must be positive").nullish(),
   monthlyFixedCosts: z.object({
-    healthInsurance: z.number().min(0).optional().nullable(),
-    socialSecurity: z.number().min(0).optional().nullable(),
-    pensionFund: z.number().min(0).optional().nullable(),
-    accidentInsurance: z.number().min(0).optional().nullable(),
-    familyAllowances: z.number().min(0).optional().nullable(),
-    otherExpenses: z.number().min(0).optional().nullable(),
+    healthInsurance: z.number().min(0).nullish(),
+    socialSecurity: z.number().min(0).nullish(),
+    pensionFund: z.number().min(0).nullish(),
+    accidentInsurance: z.number().min(0).nullish(),
+    familyAllowances: z.number().min(0).nullish(),
+    otherExpenses: z.number().min(0).nullish(),
   }).optional(),
   startDate: z.string(),
 });
@@ -88,24 +89,25 @@ export function EmployeeManagement() {
       // Clean up the data before sending
       const cleanData = {
         ...data,
-        hourlyRate: data.hourlyRate || 0,
+        hourlyRate: data.hourlyRate ?? 0,
         monthlyFixedCosts: Object.fromEntries(
-          Object.entries(data.monthlyFixedCosts || {}).map(([key, value]) => [key, value || 0])
+          Object.entries(data.monthlyFixedCosts || {}).map(([key, value]) => [key, value ?? 0])
         ),
+        role: "spitex_employee", // Set role automatically
       };
+
+      console.log('Submitting data:', cleanData); // Debug log
 
       const response = await fetch("/api/organization/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...cleanData,
-          role: "spitex_employee", // Set role automatically
-        }),
+        body: JSON.stringify(cleanData),
         credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        throw new Error(errorText);
       }
 
       return response.json();
@@ -125,10 +127,12 @@ export function EmployeeManagement() {
         title: "Error",
         description: error.message,
       });
+      console.error('Form submission error:', error); // Debug log
     },
   });
 
   const onSubmit = (data: EmployeeFormData) => {
+    console.log('Form data:', data); // Debug log
     addEmployeeMutation.mutate(data);
   };
 
@@ -164,6 +168,42 @@ export function EmployeeManagement() {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Account Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Account Information</h3>
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
               {/* Personal Information Section */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Personal Information</h3>
@@ -258,42 +298,6 @@ export function EmployeeManagement() {
                 </div>
               </div>
 
-              {/* Account Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Account Information</h3>
-                <Separator />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
               {/* Employment Details Section */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Employment Details</h3>
@@ -314,6 +318,7 @@ export function EmployeeManagement() {
                               const value = e.target.value ? parseFloat(e.target.value) : null;
                               field.onChange(value);
                             }}
+                            value={field.value ?? ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -366,6 +371,7 @@ export function EmployeeManagement() {
                                 const value = e.target.value ? parseFloat(e.target.value) : null;
                                 field.onChange(value);
                               }}
+                              value={field.value ?? ''}
                             />
                           </FormControl>
                           <FormMessage />
@@ -404,7 +410,7 @@ export function EmployeeManagement() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {employees?.map((employee) => (
+          {employees?.map((employee: any) => (
             <TableRow key={employee.id}>
               <TableCell>{employee.fullName}</TableCell>
               <TableCell>{employee.email}</TableCell>

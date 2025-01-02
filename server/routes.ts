@@ -3,10 +3,12 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import {
+  users,
+  insertUserSchema,
   patients,
   appointments,
   providerSchedules,
-  users,
+  serviceLogs,
   carePlans,
   tasks,
   progress,
@@ -18,8 +20,6 @@ import {
   patientDocuments,
   visitLogs,
   videoSessions,
-  serviceLogs,
-  insertUserSchema,
 } from "@db/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import path from 'path';
@@ -98,6 +98,8 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
+      console.log('Received employee data:', req.body); // Debug log
+
       const result = insertUserSchema.safeParse({
         ...req.body,
         role: "spitex_employee",
@@ -105,17 +107,20 @@ export function registerRoutes(app: Express): Server {
       });
 
       if (!result.success) {
+        console.error('Validation errors:', result.error.issues); // Debug log
         return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
       // Clean up optional numeric fields
       const cleanedData = {
         ...result.data,
-        hourlyRate: result.data.hourlyRate || 0,
+        hourlyRate: result.data.hourlyRate ?? 0,
         monthlyFixedCosts: Object.fromEntries(
-          Object.entries(result.data.monthlyFixedCosts || {}).map(([key, value]) => [key, value || 0])
+          Object.entries(result.data.monthlyFixedCosts || {}).map(([key, value]) => [key, value ?? 0])
         ),
       };
+
+      console.log('Cleaned data for insert:', cleanedData); // Debug log
 
       const [newEmployee] = await db
         .insert(users)
@@ -126,6 +131,7 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
+      console.log('Created employee:', newEmployee); // Debug log
       res.json(newEmployee);
     } catch (error: any) {
       console.error("Error creating employee:", error);
