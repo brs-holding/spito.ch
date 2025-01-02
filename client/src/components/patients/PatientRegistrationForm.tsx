@@ -175,7 +175,8 @@ export default function PatientRegistrationForm() {
         });
 
         if (!response.ok) {
-          throw new Error(await response.text());
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to create patient');
         }
 
         return response.json();
