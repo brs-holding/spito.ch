@@ -48,6 +48,7 @@ export function registerRoutes(app: Express): Server {
         .select({
           id: users.id,
           username: users.username,
+          fullName: users.fullName,
           email: users.email,
           isActive: users.isActive,
         })
@@ -89,9 +90,11 @@ export function registerRoutes(app: Express): Server {
           username: result.data.username,
           password: result.data.password,
           email: result.data.email,
+          fullName: result.data.fullName,
           role: "spitex_employee",
           organizationId: req.user.organizationId,
           isActive: true,
+          createdAt: new Date(),
         })
         .returning();
 

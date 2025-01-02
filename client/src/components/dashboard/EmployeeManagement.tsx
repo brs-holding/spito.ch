@@ -37,6 +37,7 @@ const employeeSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Valid email is required"),
+  fullName: z.string().min(1, "Full name is required"), // Added back as it's required
 });
 
 type EmployeeFormData = z.infer<typeof employeeSchema>;
@@ -51,6 +52,7 @@ export function EmployeeManagement() {
       username: "",
       password: "",
       email: "",
+      fullName: "",
     },
   });
 
@@ -177,6 +179,20 @@ export function EmployeeManagement() {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <div className="flex justify-end">
@@ -196,6 +212,7 @@ export function EmployeeManagement() {
         <TableHeader>
           <TableRow>
             <TableHead>Username</TableHead>
+            <TableHead>Full Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
@@ -204,6 +221,7 @@ export function EmployeeManagement() {
           {employees?.map((employee: any) => (
             <TableRow key={employee.id}>
               <TableCell>{employee.username}</TableCell>
+              <TableCell>{employee.fullName}</TableCell>
               <TableCell>{employee.email}</TableCell>
               <TableCell>{employee.isActive ? "Active" : "Inactive"}</TableCell>
             </TableRow>
