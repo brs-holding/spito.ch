@@ -22,6 +22,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -29,12 +30,18 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import SubUserOverview from "./SubUserOverview";
+import { Separator } from "@/components/ui/separator";
 
 const employeeSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
   fullName: z.string().min(1, "Full name is required"),
   email: z.string().email("Valid email is required"),
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
+  address: z.string().min(1, "Address is required"),
+  zipCode: z.string().min(1, "ZIP code is required"),
+  city: z.string().min(1, "City is required"),
+  profileImage: z.string().optional(),
   hourlyRate: z.number().min(0, "Hourly rate must be positive"),
   monthlyFixedCosts: z.object({
     healthInsurance: z.number().min(0).optional(),
@@ -128,98 +135,185 @@ export function EmployeeManagement() {
         <DialogTrigger asChild>
           <span data-dialog-trigger="add-employee" className="hidden" />
         </DialogTrigger>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Employee</DialogTitle>
+            <DialogTitle className="text-2xl">Add New Employee</DialogTitle>
           </DialogHeader>
+
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="fullName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="hourlyRate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hourly Rate (CHF)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Personal Information Section */}
               <div className="space-y-4">
-                <h4 className="font-medium">Monthly Fixed Costs</h4>
-                {[
-                  ["healthInsurance", "Health Insurance"],
-                  ["socialSecurity", "Social Security"],
-                  ["pensionFund", "Pension Fund"],
-                  ["accidentInsurance", "Accident Insurance"],
-                  ["familyAllowances", "Family Allowances"],
-                  ["otherExpenses", "Other Expenses"],
-                ].map(([key, label]) => (
+                <h3 className="text-lg font-semibold">Personal Information</h3>
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
-                    key={key}
                     control={form.control}
-                    name={`monthlyFixedCosts.${key}` as any}
+                    name="fullName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{label} (CHF)</FormLabel>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phoneNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input type="tel" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="profileImage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Profile Image</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  field.onChange(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Optional: Upload a profile picture
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>Address</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="zipCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ZIP Code</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Account Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Account Information</h3>
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Employment Details Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Employment Details</h3>
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="hourlyRate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Hourly Rate (CHF)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -231,22 +325,64 @@ export function EmployeeManagement() {
                       </FormItem>
                     )}
                   />
-                ))}
+
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit">Add Employee</Button>
+
+              {/* Monthly Fixed Costs Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Monthly Fixed Costs</h3>
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    ["healthInsurance", "Health Insurance"],
+                    ["socialSecurity", "Social Security"],
+                    ["pensionFund", "Pension Fund"],
+                    ["accidentInsurance", "Accident Insurance"],
+                    ["familyAllowances", "Family Allowances"],
+                    ["otherExpenses", "Other Expenses"],
+                  ].map(([key, label]) => (
+                    <FormField
+                      key={key}
+                      control={form.control}
+                      name={`monthlyFixedCosts.${key}` as any}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{label} (CHF)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button type="submit" size="lg">
+                  Add Employee
+                </Button>
+              </div>
             </form>
           </Form>
         </DialogContent>
