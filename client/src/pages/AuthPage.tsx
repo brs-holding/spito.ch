@@ -52,7 +52,7 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Fehler",
         description: error.message,
       });
     }
@@ -66,12 +66,12 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>{isRegister ? "Register" : "Login"}</CardTitle>
+            <CardTitle>{isRegister ? "Registrieren" : "Anmelden"}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">Benutzername</Label>
                 <Input
                   id="username"
                   type="text"
@@ -79,7 +79,7 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Passwort</Label>
                 <Input
                   id="password"
                   type="password"
@@ -88,7 +88,7 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
               </div>
               {isRegister && (
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="fullName">Vollständiger Name</Label>
                   <Input
                     id="fullName"
                     type="text"
@@ -97,7 +97,7 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
                 </div>
               )}
               <Button type="submit" className="w-full">
-                {isRegister ? "Register" : "Login"}
+                {isRegister ? "Registrieren" : "Anmelden"}
               </Button>
             </form>
             <Button
@@ -109,8 +109,8 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
               }}
             >
               {isRegister
-                ? "Already have an account? Login"
-                : "Don't have an account? Register"}
+                ? "Bereits ein Konto? Anmelden"
+                : "Noch kein Konto? Registrieren"}
             </Button>
           </CardContent>
         </Card>

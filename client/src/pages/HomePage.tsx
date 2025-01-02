@@ -24,18 +24,18 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-              Streamline Your Healthcare Practice
+              Optimieren Sie Ihre Gesundheitspraxis
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              A comprehensive digital healthcare platform designed to enhance patient care
-              and simplify practice management.
+              Eine umfassende digitale Gesundheitsplattform, entwickelt zur Verbesserung der Patientenversorgung
+              und Vereinfachung des Praxismanagements.
             </p>
             <div className="flex justify-center gap-4">
               <Link href="/register">
-                <Button size="lg">Start Free Trial</Button>
+                <Button size="lg">Kostenlos Testen</Button>
               </Link>
               <Link href="/pricing">
-                <Button variant="outline" size="lg">View Pricing</Button>
+                <Button variant="outline" size="lg">Preise Anzeigen</Button>
               </Link>
             </div>
           </div>
@@ -46,33 +46,33 @@ export default function HomePage() {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">
-            Everything You Need to Manage Your Practice
+            Alles, was Sie für Ihre Praxis brauchen
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             <Card>
               <CardHeader>
                 <ClipboardList className="h-10 w-10 text-primary mb-4" />
-                <CardTitle>Patient Management</CardTitle>
+                <CardTitle>Patientenverwaltung</CardTitle>
                 <CardDescription>
-                  Efficiently manage patient records, appointments, and care plans in one place.
+                  Verwalten Sie Patientenakten, Termine und Behandlungspläne effizient an einem Ort.
                 </CardDescription>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader>
                 <Calendar className="h-10 w-10 text-primary mb-4" />
-                <CardTitle>Smart Scheduling</CardTitle>
+                <CardTitle>Intelligente Terminplanung</CardTitle>
                 <CardDescription>
-                  Streamline appointment booking and reduce no-shows with automated reminders.
+                  Optimieren Sie die Terminbuchung und reduzieren Sie Ausfälle durch automatische Erinnerungen.
                 </CardDescription>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader>
                 <Shield className="h-10 w-10 text-primary mb-4" />
-                <CardTitle>Secure & Compliant</CardTitle>
+                <CardTitle>Sicher & Konform</CardTitle>
                 <CardDescription>
-                  HIPAA-compliant platform ensuring your patient data is always protected.
+                  DSGVO-konforme Plattform, die Ihre Patientendaten zuverlässig schützt.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -84,7 +84,7 @@ export default function HomePage() {
       <section className="py-20 bg-muted/50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">
-            How It Works
+            So funktioniert's
           </h2>
           <div className="max-w-3xl mx-auto">
             <div className="space-y-8">
@@ -93,9 +93,9 @@ export default function HomePage() {
                   <UserPlus className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">1. Register Your Practice</h3>
+                  <h3 className="text-xl font-semibold mb-2">1. Registrieren Sie Ihre Praxis</h3>
                   <p className="text-muted-foreground">
-                    Sign up in minutes and customize the platform to your practice's needs.
+                    Melden Sie sich in wenigen Minuten an und passen Sie die Plattform an Ihre Praxisbedürfnisse an.
                   </p>
                 </div>
               </div>
@@ -104,9 +104,9 @@ export default function HomePage() {
                   <Clock className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">2. Start Your Free Trial</h3>
+                  <h3 className="text-xl font-semibold mb-2">2. Starten Sie Ihre kostenlose Testphase</h3>
                   <p className="text-muted-foreground">
-                    Experience all features free for 30 days, no credit card required.
+                    Testen Sie 30 Tage lang alle Funktionen kostenlos, keine Kreditkarte erforderlich.
                   </p>
                 </div>
               </div>
@@ -115,9 +115,9 @@ export default function HomePage() {
                   <CheckCircle className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">3. Transform Your Practice</h3>
+                  <h3 className="text-xl font-semibold mb-2">3. Transformieren Sie Ihre Praxis</h3>
                   <p className="text-muted-foreground">
-                    Streamline operations and enhance patient care with our comprehensive tools.
+                    Optimieren Sie Ihre Abläufe und verbessern Sie die Patientenversorgung mit unseren umfassenden Tools.
                   </p>
                 </div>
               </div>
@@ -130,14 +130,14 @@ export default function HomePage() {
       <section className="py-20 bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-6">
-            Ready to Transform Your Healthcare Practice?
+            Bereit, Ihre Gesundheitspraxis zu transformieren?
           </h2>
           <p className="text-xl mb-8 text-primary-foreground/90">
-            Join thousands of healthcare providers who trust Spito.ch
+            Schließen Sie sich tausenden Gesundheitsdienstleistern an, die Spito.ch vertrauen
           </p>
           <Link href="/register">
             <Button size="lg" variant="secondary">
-              Start Your Free Trial
+              Kostenlose Testphase Starten
             </Button>
           </Link>
         </div>

@@ -12,42 +12,42 @@ import { Link } from "wouter";
 
 const tiers = [
   {
-    name: "Basic",
+    name: "Basis",
     price: "99",
-    description: "Essential healthcare management features",
+    description: "Grundlegende Funktionen für das Gesundheitsmanagement",
     features: [
-      "Patient management",
-      "Basic appointment scheduling",
-      "Medical records storage",
-      "Basic reporting",
-      "Email support",
+      "Patientenverwaltung",
+      "Einfache Terminplanung",
+      "Medizinische Dokumentenverwaltung",
+      "Basis-Berichterstattung",
+      "E-Mail-Support",
     ],
   },
   {
-    name: "Medium",
+    name: "Professional",
     price: "199",
-    description: "Advanced features for growing practices",
+    description: "Erweiterte Funktionen für wachsende Praxen",
     features: [
-      "All Basic features",
-      "Advanced scheduling",
-      "Document management",
-      "Custom reporting",
-      "Priority support",
-      "Team collaboration",
+      "Alle Basis-Funktionen",
+      "Erweiterte Terminplanung",
+      "Dokumentenmanagement",
+      "Individuelle Berichte",
+      "Prioritäts-Support",
+      "Team-Zusammenarbeit",
     ],
   },
   {
-    name: "Expert",
+    name: "Enterprise",
     price: "299",
-    description: "Complete solution for healthcare institutions",
+    description: "Komplettlösung für Gesundheitseinrichtungen",
     features: [
-      "All Medium features",
-      "Custom workflows",
-      "API access",
-      "Advanced analytics",
-      "24/7 phone support",
-      "Custom integrations",
-      "Training sessions",
+      "Alle Professional-Funktionen",
+      "Individuelle Workflows",
+      "API-Zugang",
+      "Erweiterte Analysen",
+      "24/7 Telefon-Support",
+      "Individuelle Integrationen",
+      "Schulungen",
     ],
   },
 ];
@@ -57,9 +57,9 @@ export default function PricingPage() {
     <div className="min-h-screen bg-gray-50 pt-16">
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold tracking-tight">Simple, transparent pricing</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Einfache, transparente Preise</h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            30-day free trial, no credit card required
+            30 Tage kostenlos testen, keine Kreditkarte erforderlich
           </p>
         </div>
 
@@ -73,7 +73,7 @@ export default function PricingPage() {
               <CardContent className="flex-1">
                 <div className="mb-4">
                   <span className="text-4xl font-bold">{tier.price}</span>
-                  <span className="text-muted-foreground"> CHF/month</span>
+                  <span className="text-muted-foreground"> CHF/Monat</span>
                 </div>
                 <ul className="space-y-3">
                   {tier.features.map((feature) => (
@@ -86,7 +86,7 @@ export default function PricingPage() {
               </CardContent>
               <CardFooter>
                 <Link href="/register">
-                  <Button className="w-full">Start Free Trial</Button>
+                  <Button className="w-full">Kostenlos Testen</Button>
                 </Link>
               </CardFooter>
             </Card>
