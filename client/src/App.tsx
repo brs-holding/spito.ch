@@ -13,6 +13,7 @@ import AppointmentsPage from "./pages/AppointmentsPage";
 import SchedulePage from "./pages/SchedulePage";
 import TasksPage from "./pages/TasksPage";
 import InvoicesPage from "./pages/InvoicesPage";
+import PatientInvoicesPage from "./pages/PatientInvoicesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
 import { useUser } from "./hooks/use-user";
@@ -53,15 +54,15 @@ function App() {
     );
   }
 
-  // Only allow spitex_org and super_admin to access analytics
-  const canAccessAnalytics = ["spitex_org", "super_admin"].includes(user.role);
+  // Show appropriate routes based on user role
+  const isPatient = user.role === "patient";
 
   return (
     <>
       <Header />
       <main className="pt-16">
         <Switch>
-          <Route path="/" component={user.role === "patient" ? PatientDashboard : Dashboard} />
+          <Route path="/" component={isPatient ? PatientDashboard : Dashboard} />
           <Route path="/register-patient" component={PatientRegistration} />
           <Route path="/pricing" component={PricingPage} />
           <Route path="/employees">
@@ -71,9 +72,11 @@ function App() {
           <Route path="/appointments" component={AppointmentsPage} />
           <Route path="/schedule" component={SchedulePage} />
           <Route path="/tasks" component={TasksPage} />
-          <Route path="/invoices" component={InvoicesPage} />
+          <Route path="/invoices">
+            {isPatient ? <PatientInvoicesPage /> : <InvoicesPage />}
+          </Route>
           <Route path="/analytics">
-            {canAccessAnalytics ? <AnalyticsPage /> : <NotFound />}
+            {["spitex_org", "super_admin"].includes(user.role) ? <AnalyticsPage /> : <NotFound />}
           </Route>
           <Route component={NotFound} />
         </Switch>

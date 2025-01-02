@@ -1014,7 +1014,6 @@ export function registerRoutes(app: Express): Server {
     res.json(newCarePlan[0]);
   });
 
-
   //// Progress
   app.get("/api/progress/:carePlanId", async(req, res) => {
     if (!req.isAuthenticated()) {
@@ -1334,15 +1333,25 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      let query = db.select().from(invoices);
+      let query = db
+        .select({
+          id: invoices.id,
+          invoiceNumber: invoices.invoiceNumber,
+          status: invoices.status,
+          totalAmount: invoices.totalAmount,
+          selbstbehaltAmount: invoices.selbstbehaltAmount,
+          createdAt: invoices.createdAt,
+          dueDate: invoices.dueDate,
+          metadata: invoices.metadata,
+          patientId: invoices.patientId,
+          organizationId: invoices.organizationId
+        })
+        .from(invoices);
 
       // Filter invoices based on user role
       if (req.user.role === "spitex_org") {
         // Organizations see all their invoices
-        query = db
-          .select()
-          .from(invoices)
-          .where(eq(invoices.organizationId, req.user.organizationId!));
+        query = query.where(eq(invoices.organizationId, req.user.organizationId!));
       } else if (req.user.role === "patient") {
         // Patients only see their invoices
         const [patient] = await db
@@ -1355,13 +1364,13 @@ export function registerRoutes(app: Express): Server {
           return res.status(404).send("Patient profile not found");
         }
 
-        query = db
-          .select()
-          .from(invoices)
-          .where(eq(invoices.patientId, patient.id));
+        query = query.where(eq(invoices.patientId, patient.id));
       } else {
         return res.status(403).send("Not authorized to view invoices");
       }
+
+      // Order by creation date
+      query = query.orderBy(desc(invoices.createdAt));
 
       const invoicesList = await query;
       res.json(invoicesList);
