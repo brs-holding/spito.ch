@@ -5,9 +5,10 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, organizations, insertUserSchema, insertOrganizationSchema, type User as SelectUser } from "@db/schema";
+import { users, organizations, type User as SelectUser } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -33,6 +34,34 @@ declare global {
     interface User extends SelectUser { }
   }
 }
+
+// Define login schema separately from user schema
+const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+// Registration schema with all required fields
+const registerSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  fullName: z.string().min(1, "Full name is required"),
+  email: z.string().email("Valid email is required"),
+  role: z.enum(["super_admin", "spitex_org", "spitex_employee", "freelancer", "insurance", "family_member", "patient"]),
+  organizationName: z.string().optional(),
+  organizationType: z.string().optional(),
+  hourlyRate: z.number().optional(),
+  monthlyFixedCosts: z.object({
+    healthInsurance: z.number().optional(),
+    socialSecurity: z.number().optional(),
+    pensionFund: z.number().optional(),
+    accidentInsurance: z.number().optional(),
+    familyAllowances: z.number().optional(),
+    otherExpenses: z.number().optional(),
+  }).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
 
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
@@ -99,14 +128,14 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      const result = insertUserSchema.safeParse(req.body);
+      const result = registerSchema.safeParse(req.body);
       if (!result.success) {
         return res
           .status(400)
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { username, password, fullName, email, role, organizationName, organizationType } = result.data;
+      const { username, password, fullName, email, role, organizationName, organizationType, hourlyRate, monthlyFixedCosts, startDate, endDate } = result.data;
 
       // Check if user already exists
       const [existingUser] = await db
@@ -126,22 +155,16 @@ export function setupAuth(app: Express) {
 
       // Create organization if required
       if ((role === "spitex_org" || role === "insurance") && organizationName && organizationType) {
-        const organizationResult = insertOrganizationSchema.safeParse({
-          name: organizationName,
-          type: organizationType,
-          subscriptionTier: "free_trial",
-          maxCaregivers: role === "spitex_org" ? 3 : undefined, // Default to 3 caregivers for SPITEX
-          address: {},
-          contactInfo: {}
-        });
-
-        if (!organizationResult.success) {
-          return res.status(400).send("Invalid organization data: " + organizationResult.error.issues.map(i => i.message).join(", "));
-        }
-
         const [newOrg] = await db
           .insert(organizations)
-          .values(organizationResult.data)
+          .values({
+            name: organizationName,
+            type: organizationType,
+            subscriptionTier: "free_trial",
+            maxCaregivers: role === "spitex_org" ? 3 : undefined,
+            address: {},
+            contactInfo: {}
+          })
           .returning();
 
         organizationId = newOrg.id;
@@ -157,6 +180,10 @@ export function setupAuth(app: Express) {
           email,
           role,
           organizationId,
+          hourlyRate,
+          monthlyFixedCosts,
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
         })
         .returning();
 
@@ -176,7 +203,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    const result = insertUserSchema.safeParse(req.body);
+    const result = loginSchema.safeParse(req.body);
     if (!result.success) {
       return res
         .status(400)
