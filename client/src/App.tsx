@@ -5,6 +5,7 @@ import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import PatientDashboard from "./pages/PatientDashboard";
 import PatientRegistration from "./pages/PatientRegistration";
+import PricingPage from "./pages/PricingPage";
 import { useUser } from "./hooks/use-user";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/ui/Header";
@@ -24,7 +25,10 @@ function App() {
     return (
       <>
         <Header />
-        <AuthPage />
+        <Switch>
+          <Route path="/pricing" component={PricingPage} />
+          <Route component={AuthPage} />
+        </Switch>
       </>
     );
   }
@@ -36,6 +40,7 @@ function App() {
         <Switch>
           <Route path="/" component={user.role === "patient" ? PatientDashboard : Dashboard} />
           <Route path="/register-patient" component={PatientRegistration} />
+          <Route path="/pricing" component={PricingPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
@@ -44,6 +49,7 @@ function App() {
   );
 }
 
+// fallback 404 not found page
 function NotFound() {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
