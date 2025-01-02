@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { columns } from "@/components/patients/columns";
 import { useToast } from "@/hooks/use-toast";
+import PatientDetailsDialog from "@/components/patients/PatientDetailsDialog";
 
 export default function PatientsPage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   const { data: patients, isLoading } = useQuery<Patient[]>({
     queryKey: ["/api/patients"],
@@ -61,9 +63,16 @@ export default function PatientsPage() {
             columns={columns}
             data={filteredPatients || []}
             isLoading={isLoading}
+            onRowClick={(row) => setSelectedPatient(row.original)}
           />
         </CardContent>
       </Card>
+
+      <PatientDetailsDialog
+        patient={selectedPatient}
+        open={!!selectedPatient}
+        onClose={() => setSelectedPatient(null)}
+      />
     </div>
   );
 }

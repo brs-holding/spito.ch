@@ -94,9 +94,6 @@ export const columns: ColumnDef<Patient>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => window.location.href = `/patients/${patient.id}`}>
-              View Details
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => window.location.href = `/patients/${patient.id}/edit`}>
               Edit Patient
             </DropdownMenuItem>
