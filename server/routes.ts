@@ -59,9 +59,9 @@ export function registerRoutes(app: Express): Server {
 
           const hourlyRate = employee.hourlyRate || 0;
           const monthlyFixedCosts = employee.monthlyFixedCosts || {};
-          const totalFixedCosts = Object.values(monthlyFixedCosts).reduce((sum, cost) => sum + (cost || 0), 0);
+          const totalFixedCosts = Object.values(monthlyFixedCosts).reduce((sum, cost) => sum + (Number(cost) || 0), 0);
 
-          const totalCosts = (logs[0]?.totalHours || 0) * hourlyRate + totalFixedCosts;
+          const totalCosts = (logs[0]?.totalHours || 0) * Number(hourlyRate) + totalFixedCosts;
           const profit = (logs[0]?.totalBilled || 0) - totalCosts;
 
           return {
@@ -105,7 +105,11 @@ export function registerRoutes(app: Express): Server {
 
       const [newEmployee] = await db
         .insert(users)
-        .values(result.data)
+        .values({
+          ...result.data,
+          createdAt: new Date(),
+          isActive: true,
+        })
         .returning();
 
       res.json(newEmployee);
@@ -194,8 +198,8 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      const employeeId = req.user.role === "spitex_employee" 
-        ? req.user.id 
+      const employeeId = req.user.role === "spitex_employee"
+        ? req.user.id
         : req.body.employeeId;
 
       const [newLog] = await db
