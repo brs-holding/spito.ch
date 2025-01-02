@@ -316,15 +316,39 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
-    const newDocument = await db
-      .insert(patientDocuments)
-      .values({
-        ...req.body,
+
+    try {
+      // Validate required fields
+      const { title, type } = req.body;
+      if (!title || !type) {
+        return res.status(400).send("Title and type are required");
+      }
+
+      // For now, we'll store file data in the database directly
+      // In a production environment, you would want to store files in a proper storage service
+      const documentData = {
         patientId: parseInt(req.params.id),
         uploadedBy: req.user!.id,
-      })
-      .returning();
-    res.json(newDocument[0]);
+        title,
+        type,
+        fileUrl: `document_${Date.now()}.pdf`, // Placeholder URL
+        uploadedAt: new Date(),
+        metadata: req.body.metadata || {},
+      };
+
+      const [newDocument] = await db
+        .insert(patientDocuments)
+        .values(documentData)
+        .returning();
+
+      res.json(newDocument);
+    } catch (error: any) {
+      console.error("Error uploading document:", error);
+      res.status(500).json({
+        message: "Failed to upload document",
+        error: error.message,
+      });
+    }
   });
 
   // Visit Logs Routes

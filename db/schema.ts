@@ -3,10 +3,9 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
-// User schema with role field
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").unique().notNull(),
+  username: text("username").unique(),  
   password: text("password").notNull(),
   role: text("role", { enum: ["doctor", "nurse", "admin", "patient"] }).notNull().default("nurse"),
   fullName: text("full_name").notNull().default(''),
@@ -156,7 +155,7 @@ export const appointments = pgTable("appointments", {
   patientId: integer("patient_id").references(() => patients.id).notNull(),
   providerId: integer("provider_id").references(() => users.id).notNull(),
   scheduledFor: timestamp("scheduled_for").notNull(),
-  duration: integer("duration").notNull(), // in minutes
+  duration: integer("duration").notNull(), 
   status: text("status", {
     enum: ["scheduled", "cancelled", "completed", "no_show"]
   }).notNull().default("scheduled"),
@@ -169,13 +168,12 @@ export const appointments = pgTable("appointments", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Adding providerSchedules table after appointments table
 export const providerSchedules = pgTable("provider_schedules", {
   id: serial("id").primaryKey(),
   providerId: integer("provider_id").references(() => users.id).notNull(),
-  dayOfWeek: integer("day_of_week").notNull(), // 0-6 for Sunday-Saturday
-  startTime: text("start_time").notNull(), // Format: "HH:mm"
-  endTime: text("end_time").notNull(), // Format: "HH:mm"
+  dayOfWeek: integer("day_of_week").notNull(), 
+  startTime: text("start_time").notNull(), 
+  endTime: text("end_time").notNull(), 
   isAvailable: boolean("is_available").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -296,7 +294,6 @@ export const visitLogsRelations = relations(visitLogs, ({ one }) => ({
   }),
 }));
 
-// Add relations
 export const providerSchedulesRelations = relations(providerSchedules, ({ one }) => ({
   provider: one(users, {
     fields: [providerSchedules.providerId],
@@ -304,13 +301,11 @@ export const providerSchedulesRelations = relations(providerSchedules, ({ one })
   }),
 }));
 
-// Add schemas for the new table
 export const insertProviderScheduleSchema = createInsertSchema(providerSchedules);
 export const selectProviderScheduleSchema = createSelectSchema(providerSchedules);
 export type ProviderSchedule = typeof providerSchedules.$inferSelect;
 
 
-// Update the schema validation
 export const insertUserSchema = createInsertSchema(users, {
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),

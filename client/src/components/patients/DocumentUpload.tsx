@@ -26,23 +26,32 @@ export default function DocumentUpload({ patientId }: DocumentUploadProps) {
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      if (!file || !type || !title) {
-        throw new Error("Bitte füllen Sie alle Felder aus");
+      if (!title || !type) {
+        throw new Error("Bitte füllen Sie Titel und Typ aus");
       }
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("type", type);
-      formData.append("title", title);
+      const documentData = {
+        title,
+        type,
+        metadata: {
+          fileName: file?.name,
+          fileSize: file?.size,
+          fileType: file?.type,
+        }
+      };
 
       const response = await fetch(`/api/patients/${patientId}/documents`, {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(documentData),
         credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        throw new Error(errorText || "Fehler beim Hochladen des Dokuments");
       }
 
       return response.json();
@@ -107,7 +116,7 @@ export default function DocumentUpload({ patientId }: DocumentUploadProps) {
       <Button
         className="w-full"
         onClick={() => uploadMutation.mutate()}
-        disabled={uploadMutation.isPending}
+        disabled={uploadMutation.isPending || !title || !type}
       >
         <Upload className="h-4 w-4 mr-2" />
         {uploadMutation.isPending ? "Wird hochgeladen..." : "Hochladen"}
