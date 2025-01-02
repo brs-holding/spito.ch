@@ -55,6 +55,8 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
+      console.log("Received patient data:", req.body); // Debug log
+
       const { 
         firstName,
         lastName,
@@ -74,13 +76,22 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
+      // Validate date format
+      const parsedDate = new Date(dateOfBirth);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({
+          message: "Failed to create patient",
+          error: "Invalid date format for date of birth",
+        });
+      }
+
       // Create the patient record
       const [newPatient] = await db
         .insert(patients)
         .values({
           first_name: firstName,
           last_name: lastName,
-          date_of_birth: new Date(dateOfBirth),
+          date_of_birth: parsedDate,
           gender,
           email,
           phone,
@@ -91,6 +102,7 @@ export function registerRoutes(app: Express): Server {
         })
         .returning();
 
+      console.log("Created patient:", newPatient); // Debug log
       res.json(newPatient);
     } catch (error: any) {
       console.error("Error creating patient:", error);

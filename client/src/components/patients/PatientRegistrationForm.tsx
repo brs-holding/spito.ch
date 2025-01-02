@@ -74,34 +74,25 @@ export default function PatientRegistrationForm() {
   const createPatient = useMutation({
     mutationFn: async (data: PatientFormValues) => {
       try {
-        // Convert the data to match database field names
-        const formData = {
-          first_name: data.firstName,
-          last_name: data.lastName,
-          date_of_birth: new Date(data.dateOfBirth).toISOString(),
-          gender: data.gender,
-          email: data.email,
-          phone: data.phone,
-          address: data.address,
-          emergency_contact: data.emergencyContact,
-        };
+        console.log("Submitting form data:", data); // Debug log
 
         const response = await fetch("/api/patients", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
           credentials: "include",
         });
 
+        const responseData = await response.json();
+
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to create patient");
+          throw new Error(responseData.message || responseData.error || "Failed to create patient");
         }
 
-        return response.json();
-      } catch (error) {
+        return responseData;
+      } catch (error: any) {
         console.error("Error creating patient:", error);
         throw error;
       }
