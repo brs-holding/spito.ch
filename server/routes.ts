@@ -400,8 +400,54 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
-    const allPatients = await db.select().from(patients);
-    res.json(allPatients);
+
+    try {
+      let query = db.select().from(patients);
+
+      // Filter patients based on user role and organization
+      if (req.user.role === "spitex_org" || req.user.role === "spitex_employee") {
+        // Get organization's patients
+        query = db
+          .select({
+            id: patients.id,
+            firstName: patients.firstName,
+            lastName: patients.lastName,
+            dateOfBirth: patients.dateOfBirth,
+            gender: patients.gender,
+            email: patients.email,
+            phone: patients.phone,
+            address: patients.address,
+            emergencyContact: patients.emergencyContact,
+            medicalHistory: patients.medicalHistory,
+            currentDiagnoses: patients.currentDiagnoses,
+            allergies: patients.allergies,
+            preferences: patients.preferences,
+            createdAt: patients.createdAt,
+            updatedAt: patients.updatedAt,
+          })
+          .from(patients)
+          .innerJoin(users, eq(patients.userId, users.id))
+          .where(eq(users.organizationId, req.user.organizationId!));
+      } else if (req.user.role === "patient") {
+        // Patients can only see their own data
+        query = db
+          .select()
+          .from(patients)
+          .where(eq(patients.userId, req.user.id));
+      } else {
+        // Other roles are not authorized to view patient data
+        return res.status(403).send("Not authorized to view patient data");
+      }
+
+      const allPatients = await query;
+      res.json(allPatients);
+    } catch (error: any) {
+      console.error("Error fetching patients:", error);
+      res.status(500).json({
+        message: "Failed to fetch patients",
+        error: error.message,
+      });
+    }
   });
 
   app.get("/api/patients/:id", async (req, res) => {
