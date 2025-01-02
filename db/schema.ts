@@ -20,6 +20,43 @@ export const patients = pgTable("patients", {
   contactInfo: jsonb("contact_info").notNull(),
 });
 
+export const medications = pgTable("medications", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  dosageForm: text("dosage_form", {
+    enum: ["tablet", "capsule", "liquid", "injection", "other"]
+  }).notNull(),
+  strength: text("strength").notNull(),
+  manufacturer: text("manufacturer"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const medicationSchedules = pgTable("medication_schedules", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  medicationId: integer("medication_id").references(() => medications.id).notNull(),
+  prescribedById: integer("prescribed_by_id").references(() => users.id).notNull(),
+  dosage: text("dosage").notNull(),
+  frequency: jsonb("frequency").notNull(), 
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  instructions: text("instructions"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const medicationAdherence = pgTable("medication_adherence", {
+  id: serial("id").primaryKey(),
+  scheduleId: integer("schedule_id").references(() => medicationSchedules.id).notNull(),
+  takenAt: timestamp("taken_at").defaultNow().notNull(),
+  status: text("status", {
+    enum: ["taken", "missed", "delayed", "skipped"]
+  }).notNull(),
+  notes: text("notes"),
+});
+
 export const healthMetrics = pgTable("health_metrics", {
   id: serial("id").primaryKey(),
   patientId: integer("patient_id").references(() => patients.id).notNull(),
@@ -59,7 +96,29 @@ export const progress = pgTable("progress", {
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
 });
 
-// Relations
+export const medicationScheduleRelations = relations(medicationSchedules, ({ one, many }) => ({
+  medication: one(medications, {
+    fields: [medicationSchedules.medicationId],
+    references: [medications.id],
+  }),
+  patient: one(patients, {
+    fields: [medicationSchedules.patientId],
+    references: [patients.id],
+  }),
+  prescribedBy: one(users, {
+    fields: [medicationSchedules.prescribedById],
+    references: [users.id],
+  }),
+  adherenceRecords: many(medicationAdherence),
+}));
+
+export const medicationAdherenceRelations = relations(medicationAdherence, ({ one }) => ({
+  schedule: one(medicationSchedules, {
+    fields: [medicationAdherence.scheduleId],
+    references: [medicationSchedules.id],
+  }),
+}));
+
 export const userRelations = relations(users, ({ many, one }) => ({
   assignedTasks: many(tasks),
   patient: one(patients, {
@@ -71,6 +130,7 @@ export const userRelations = relations(users, ({ many, one }) => ({
 export const patientRelations = relations(patients, ({ many, one }) => ({
   carePlans: many(carePlans),
   healthMetrics: many(healthMetrics),
+  medicationSchedules: many(medicationSchedules),
   user: one(users, {
     fields: [patients.userId],
     references: [users.id],
@@ -86,7 +146,6 @@ export const carePlanRelations = relations(carePlans, ({ one, many }) => ({
   progressRecords: many(progress),
 }));
 
-// Schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 
@@ -105,9 +164,21 @@ export const selectProgressSchema = createSelectSchema(progress);
 export const insertHealthMetricSchema = createInsertSchema(healthMetrics);
 export const selectHealthMetricSchema = createSelectSchema(healthMetrics);
 
+export const insertMedicationSchema = createInsertSchema(medications);
+export const selectMedicationSchema = createSelectSchema(medications);
+
+export const insertMedicationScheduleSchema = createInsertSchema(medicationSchedules);
+export const selectMedicationScheduleSchema = createSelectSchema(medicationSchedules);
+
+export const insertMedicationAdherenceSchema = createInsertSchema(medicationAdherence);
+export const selectMedicationAdherenceSchema = createSelectSchema(medicationAdherence);
+
 export type User = typeof users.$inferSelect;
 export type Patient = typeof patients.$inferSelect;
 export type CarePlan = typeof carePlans.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Progress = typeof progress.$inferSelect;
 export type HealthMetric = typeof healthMetrics.$inferSelect;
+export type Medication = typeof medications.$inferSelect;
+export type MedicationSchedule = typeof medicationSchedules.$inferSelect;
+export type MedicationAdherence = typeof medicationAdherence.$inferSelect;
