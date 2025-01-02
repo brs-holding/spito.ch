@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import SubUserOverview from "./SubUserOverview";
 
 const employeeSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -57,7 +58,11 @@ export function EmployeeManagement() {
     },
   });
 
-  const { data: employees, isLoading } = useQuery({
+  const { data: organization } = useQuery({
+    queryKey: ["/api/organization"],
+  });
+
+  const { data: employees = [], isLoading } = useQuery({
     queryKey: ["/api/organization/employees"],
   });
 
@@ -102,138 +107,150 @@ export function EmployeeManagement() {
     return <div>Loading...</div>;
   }
 
+  const maxUsers = organization?.maxCaregivers || 3; // Default to 3 if not set
+
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Employee Management</h2>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>Add Employee</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Employee</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="fullName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="hourlyRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Hourly Rate (CHF)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="space-y-4">
-                  <h4 className="font-medium">Monthly Fixed Costs</h4>
-                  {[
-                    ["healthInsurance", "Health Insurance"],
-                    ["socialSecurity", "Social Security"],
-                    ["pensionFund", "Pension Fund"],
-                    ["accidentInsurance", "Accident Insurance"],
-                    ["familyAllowances", "Family Allowances"],
-                    ["otherExpenses", "Other Expenses"],
-                  ].map(([key, label]) => (
-                    <FormField
-                      key={key}
-                      control={form.control}
-                      name={`monthlyFixedCosts.${key}` as any}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{label} (CHF)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  ))}
-                </div>
-                <FormField
-                  control={form.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Start Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit">Add Employee</Button>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <h2 className="text-2xl font-bold">Employee Management</h2>
+
+      <SubUserOverview
+        totalUsers={employees.length}
+        maxUsers={maxUsers}
+        onAddEmployee={() => {
+          const dialogTrigger = document.querySelector('[data-dialog-trigger="add-employee"]');
+          if (dialogTrigger instanceof HTMLElement) {
+            dialogTrigger.click();
+          }
+        }}
+      />
+
+      <Dialog>
+        <DialogTrigger asChild>
+          <span data-dialog-trigger="add-employee" className="hidden" />
+        </DialogTrigger>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add New Employee</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="hourlyRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hourly Rate (CHF)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="space-y-4">
+                <h4 className="font-medium">Monthly Fixed Costs</h4>
+                {[
+                  ["healthInsurance", "Health Insurance"],
+                  ["socialSecurity", "Social Security"],
+                  ["pensionFund", "Pension Fund"],
+                  ["accidentInsurance", "Accident Insurance"],
+                  ["familyAllowances", "Family Allowances"],
+                  ["otherExpenses", "Other Expenses"],
+                ].map(([key, label]) => (
+                  <FormField
+                    key={key}
+                    control={form.control}
+                    name={`monthlyFixedCosts.${key}` as any}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{label} (CHF)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit">Add Employee</Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <Table>
         <TableHeader>
