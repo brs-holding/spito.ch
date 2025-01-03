@@ -400,6 +400,120 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+  // Patient Profile Routes (UPDATED)
+  app.get("/api/patients", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      let query;
+
+      // Filter patients based on user role and organization
+      if (req.user.role === "spitex_org" || req.user.role === "spitex_employee") {
+        // Get organization's patients only
+        query = db
+          .select({
+            id: patients.id,
+            firstName: patients.firstName,
+            lastName: patients.lastName,
+            dateOfBirth: patients.dateOfBirth,
+            gender: patients.gender,
+            email: patients.email,
+            phone: patients.phone,
+            address: patients.address,
+            emergencyContact: patients.emergencyContact,
+            medicalHistory: patients.medicalHistory,
+            currentDiagnoses: patients.currentDiagnoses,
+            allergies: patients.allergies,
+            preferences: patients.preferences,
+            createdAt: patients.createdAt,
+            updatedAt: patients.updatedAt,
+          })
+          .from(patients)
+          .where(eq(patients.organizationId, req.user.organizationId!));
+      } else {
+        // Other roles are not authorized to view patient data
+        return res.status(403).send("Not authorized to view patient data");
+      }
+
+      const allPatients = await query;
+      res.json(allPatients);
+    } catch (error: any) {
+      console.error("Error fetching patients:", error);
+      res.status(500).json({
+        message: "Failed to fetch patients",
+        error: error.message,
+      });
+    }
+  });
+
+  // Create patient endpoint (UPDATED)
+  app.post("/api/patients", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user.role !== "spitex_org" && req.user.role !== "spitex_employee") {
+      return res.status(403).send("Not authorized to create patients");
+    }
+
+    try {
+      const patientData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        dateOfBirth: new Date(req.body.dateOfBirth),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const [newPatient] = await db
+        .insert(patients)
+        .values(patientData)
+        .returning();
+
+      res.json(newPatient);
+    } catch (error: any) {
+      console.error("Error creating patient:", error);
+      res.status(500).json({
+        message: "Failed to create patient",
+        error: error.message,
+      });
+    }
+  });
+
+  // Get single patient endpoint (UPDATED)
+  app.get("/api/patients/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const [patient] = await db
+        .select()
+        .from(patients)
+        .where(
+          and(
+            eq(patients.id, parseInt(req.params.id)),
+            eq(patients.organizationId, req.user.organizationId!)
+          )
+        )
+        .limit(1);
+
+      if (!patient) {
+        return res.status(404).send("Patient not found");
+      }
+
+      res.json(patient);
+    } catch (error: any) {
+      console.error("Error fetching patient:", error);
+      res.status(500).json({
+        message: "Failed to fetch patient",
+        error: error.message,
+      });
+    }
+  });
+
   // Tasks Routes
   app.get("/api/tasks", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -617,7 +731,7 @@ export function registerRoutes(app: Express): Server {
 
       // Filter patients based on user role and organization
       if (req.user.role === "spitex_org" || req.user.role === "spitex_employee") {
-        // Get organization's patients
+        // Get organization's patients only
         query = db
           .select({
             id: patients.id,
@@ -688,20 +802,36 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Get single patient endpoint (UPDATED)
   app.get("/api/patients/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
-    const [patient] = await db
-      .select()
-      .from(patients)
-      .where(eq(patients.id, parseInt(req.params.id)))
-      .limit(1);
 
-    if (!patient) {
-      return res.status(404).send("Patient not found");
+    try {
+      const [patient] = await db
+        .select()
+        .from(patients)
+        .where(
+          and(
+            eq(patients.id, parseInt(req.params.id)),
+            eq(patients.organizationId, req.user.organizationId!)
+          )
+        )
+        .limit(1);
+
+      if (!patient) {
+        return res.status(404).send("Patient not found");
+      }
+
+      res.json(patient);
+    } catch (error: any) {
+      console.error("Error fetching patient:", error);
+      res.status(500).json({
+        message: "Failed to fetch patient",
+        error: error.message,
+      });
     }
-    res.json(patient);
   });
 
   // Update patient endpoint (NEW)
