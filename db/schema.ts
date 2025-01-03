@@ -309,6 +309,27 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const taskComments = pgTable("task_comments", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const taskHistory = pgTable("task_history", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  changeType: text("change_type", {
+    enum: ["status_change", "assignment_change", "update", "comment"]
+  }).notNull(),
+  previousValue: jsonb("previous_value"),
+  newValue: jsonb("new_value"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const medicationScheduleRelations = relations(medicationSchedules, ({ one, many }) => ({
   medication: one(medications, {
     fields: [medicationSchedules.medicationId],
@@ -456,6 +477,8 @@ export const taskRelations = relations(tasks, ({ one, many }) => ({
     references: [users.id],
   }),
   assignments: many(taskAssignments),
+  comments: many(taskComments),
+  history: many(taskHistory),
 }));
 
 export const taskAssignmentRelations = relations(taskAssignments, ({ one }) => ({
@@ -465,6 +488,28 @@ export const taskAssignmentRelations = relations(taskAssignments, ({ one }) => (
   }),
   assignedTo: one(users, {
     fields: [taskAssignments.assignedToId],
+    references: [users.id],
+  }),
+}));
+
+export const taskCommentRelations = relations(taskComments, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskComments.taskId],
+    references: [tasks.id],
+  }),
+  user: one(users, {
+    fields: [taskComments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const taskHistoryRelations = relations(taskHistory, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskHistory.taskId],
+    references: [tasks.id],
+  }),
+  user: one(users, {
+    fields: [taskHistory.userId],
     references: [users.id],
   }),
 }));
@@ -626,3 +671,17 @@ export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;
 
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = typeof payments.$inferInsert;
+
+export const insertTaskCommentSchema = createInsertSchema(taskComments, {
+  content: z.string().min(1, "Comment cannot be empty"),
+});
+
+export const selectTaskCommentSchema = createSelectSchema(taskComments);
+
+export const insertTaskHistorySchema = createInsertSchema(taskHistory);
+export const selectTaskHistorySchema = createSelectSchema(taskHistory);
+
+export type TaskComment = typeof taskComments.$inferSelect;
+export type InsertTaskComment = typeof taskComments.$inferInsert;
+export type TaskHistory = typeof taskHistory.$inferSelect;
+export type InsertTaskHistory = typeof taskHistory.$inferInsert;

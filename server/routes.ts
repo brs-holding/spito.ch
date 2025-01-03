@@ -424,6 +424,7 @@ export function registerRoutes(app: Express): Server {
             createdById: tasks.createdById,
             createdAt: tasks.createdAt,
             updatedAt: tasks.updatedAt,
+            assignments: taskAssignments
           })
           .from(tasks)
           .innerJoin(taskAssignments, eq(tasks.id, taskAssignments.taskId))
@@ -575,7 +576,12 @@ export function registerRoutes(app: Express): Server {
       const [patient] = await db
         .select()
         .from(patients)
-        .where(eq(patients.id, patientId))
+        .where(
+          and(
+            eq(patients.id, patientId),
+            eq(patients.organizationId, req.user.organizationId!)
+          )
+        )
         .limit(1);
 
       if (!patient) {
@@ -595,58 +601,6 @@ export function registerRoutes(app: Express): Server {
       console.error("Error fetching patient tasks:", error);
       res.status(500).json({
         message: "Failed to fetch patient tasks",
-        error: error.message,
-      });
-    }
-  });
-
-  // Notification Routes
-  app.get("/api/notifications", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const userNotifications = await db
-        .select()
-        .from(notifications)
-        .where(eq(notifications.userId, req.user!.id))
-        .orderBy(desc(notifications.createdAt));
-
-      res.json(userNotifications);
-    } catch (error: any) {
-      console.error("Error fetching notifications:", error);
-      res.status(500).json({
-        message: "Failed to fetch notifications",
-        error: error.message,
-      });
-    }
-  });
-
-  app.post("/api/notifications/read", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    const { notificationId } = req.body;
-
-    try {
-      const [updatedNotification] = await db
-        .update(notifications)
-        .set({ isRead: true })
-        .where(
-          and(
-            eq(notifications.id, notificationId),
-            eq(notifications.userId, req.user!.id)
-          )
-        )
-        .returning();
-
-      res.json(updatedNotification);
-    } catch (error: any) {
-      console.error("Error marking notification as read:", error);
-      res.status(500).json({
-        message: "Failed to mark notification as read",
         error: error.message,
       });
     }
@@ -1051,7 +1005,6 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
-
     const [patient] = await db
       .select()
       .from(patients)

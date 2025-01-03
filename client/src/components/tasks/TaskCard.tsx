@@ -2,6 +2,9 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Calendar, AlertCircle } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
 
 type Task = {
   id: number;
@@ -15,9 +18,24 @@ type Task = {
 interface Props {
   task: Task;
   onClick?: () => void;
+  className?: string;
 }
 
-export default function TaskCard({ task, onClick }: Props) {
+export default function TaskCard({ task, onClick, className }: Props) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   const priorityColors = {
     high: "text-red-500 bg-red-100",
     medium: "text-yellow-500 bg-yellow-100",
@@ -26,8 +44,16 @@ export default function TaskCard({ task, onClick }: Props) {
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow"
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "cursor-move hover:shadow-md transition-shadow",
+        isDragging && "opacity-50",
+        className
+      )}
       onClick={onClick}
+      {...attributes}
+      {...listeners}
     >
       <CardHeader className="p-4">
         <div className="space-y-2">
