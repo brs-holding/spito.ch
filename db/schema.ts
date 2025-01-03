@@ -48,6 +48,7 @@ export const organizations = pgTable("organizations", {
 export const patients = pgTable("patients", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
+  organizationId: integer("organization_id").references(() => organizations.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   dateOfBirth: timestamp("date_of_birth").notNull(),
@@ -352,6 +353,10 @@ export const patientRelations = relations(patients, ({ one, many }) => ({
   user: one(users, {
     fields: [patients.userId],
     references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [patients.organizationId],
+    references: [organizations.id],
   }),
   insuranceDetails: many(insuranceDetails),
   documents: many(patientDocuments),

@@ -683,8 +683,7 @@ export function registerRoutes(app: Express): Server {
             updatedAt: patients.updatedAt,
           })
           .from(patients)
-          .innerJoin(users, eq(patients.userId, users.id))
-          .where(eq(users.organizationId, req.user.organizationId!));
+          .where(eq(patients.organizationId, req.user.organizationId!));
       } else {
         // Other roles are not authorized to view patient data
         return res.status(403).send("Not authorized to view patient data");
@@ -696,6 +695,40 @@ export function registerRoutes(app: Express): Server {
       console.error("Error fetching patients:", error);
       res.status(500).json({
         message: "Failed to fetch patients",
+        error: error.message,
+      });
+    }
+  });
+
+  // Create patient endpoint (UPDATED)
+  app.post("/api/patients", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    if (req.user.role !== "spitex_org" && req.user.role !== "spitex_employee") {
+      return res.status(403).send("Not authorized to create patients");
+    }
+
+    try {
+      const patientData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        dateOfBirth: new Date(req.body.dateOfBirth),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const [newPatient] = await db
+        .insert(patients)
+        .values(patientData)
+        .returning();
+
+      res.json(newPatient);
+    } catch (error: any) {
+      console.error("Error creating patient:", error);
+      res.status(500).json({
+        message: "Failed to create patient",
         error: error.message,
       });
     }
@@ -793,34 +826,6 @@ export function registerRoutes(app: Express): Server {
       console.error("Error deleting patient:", error);
       res.status(500).json({
         message: "Failed to delete patient",
-        error: error.message,
-      });
-    }
-  });
-
-  app.post("/api/patients", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const patientData = {
-        ...req.body,
-        dateOfBirth: new Date(req.body.dateOfBirth),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const [newPatient] = await db
-        .insert(patients)
-        .values(patientData)
-        .returning();
-
-      res.json(newPatient);
-    } catch (error: any) {
-      console.error("Error creating patient:", error);
-      res.status(500).json({
-        message: "Failed to create patient",
         error: error.message,
       });
     }
