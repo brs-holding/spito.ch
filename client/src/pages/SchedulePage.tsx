@@ -7,12 +7,13 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useForm } from "react-hook-form";
-import { Loader2, Plus, Clock, Users } from "lucide-react";
+import { Loader2, Plus, Clock, Users, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/use-user";
-import type { CalendarEvent, InsertCalendarEvent } from "@db/schema";
+import type { CalendarEvent } from "@db/schema";
 
 type EventFormData = {
   title: string;
@@ -26,6 +27,7 @@ type EventFormData = {
 export default function SchedulePage() {
   const { user } = useUser();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedAttendees, setSelectedAttendees] = useState<Array<{ id: string; name: string }>>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -60,7 +62,7 @@ export default function SchedulePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          attendeeIds: data.attendeeIds.map(id => parseInt(id)),
+          attendeeIds: selectedAttendees.map(a => parseInt(a.id)),
           patientId: data.patientId ? parseInt(data.patientId) : undefined,
         }),
         credentials: "include",
@@ -75,6 +77,7 @@ export default function SchedulePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calendar"] });
       setIsDialogOpen(false);
+      setSelectedAttendees([]);
       form.reset();
       toast({
         title: "Event created",
@@ -92,6 +95,19 @@ export default function SchedulePage() {
 
   const onSubmit = (data: EventFormData) => {
     createEventMutation.mutate(data);
+  };
+
+  const handleAttendeeSelect = (userId: string) => {
+    const user = organizationUsers?.find(u => u.id.toString() === userId);
+    if (user && !selectedAttendees.some(a => a.id === userId)) {
+      setSelectedAttendees([...selectedAttendees, { id: userId, name: user.fullName }]);
+      form.setValue('attendeeIds', [...selectedAttendees.map(a => a.id), userId]);
+    }
+  };
+
+  const removeAttendee = (userId: string) => {
+    setSelectedAttendees(selectedAttendees.filter(a => a.id !== userId));
+    form.setValue('attendeeIds', selectedAttendees.filter(a => a.id !== userId).map(a => a.id));
   };
 
   if (isLoadingEvents || isLoadingUsers || isLoadingPatients) {
@@ -183,27 +199,43 @@ export default function SchedulePage() {
                 <FormField
                   control={form.control}
                   name="attendeeIds"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
                       <FormLabel>Attendees</FormLabel>
-                      <FormControl>
-                        <Select
-                          {...field}
-                          multiple
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select attendees" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {organizationUsers?.map((user) => (
-                              <SelectItem key={user.id} value={user.id.toString()}>
-                                {user.fullName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
+                      <Select onValueChange={handleAttendeeSelect}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Add attendee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {organizationUsers?.map((user) => (
+                            <SelectItem 
+                              key={user.id} 
+                              value={user.id.toString()}
+                              disabled={selectedAttendees.some(a => a.id === user.id.toString())}
+                            >
+                              {user.fullName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedAttendees.map((attendee) => (
+                          <Badge
+                            key={attendee.id}
+                            variant="secondary"
+                            className="flex items-center gap-1"
+                          >
+                            {attendee.name}
+                            <button
+                              type="button"
+                              onClick={() => removeAttendee(attendee.id)}
+                              className="hover:bg-accent rounded-full p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -216,26 +248,24 @@ export default function SchedulePage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Patient (Optional)</FormLabel>
-                        <FormControl>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select patient" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {patients.map((patient) => (
-                                <SelectItem
-                                  key={patient.id}
-                                  value={patient.id.toString()}
-                                >
-                                  {patient.firstName} {patient.lastName}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select patient" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {patients.map((patient) => (
+                              <SelectItem
+                                key={patient.id}
+                                value={patient.id.toString()}
+                              >
+                                {patient.firstName} {patient.lastName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -285,7 +315,6 @@ export default function SchedulePage() {
                           </p>
                         )}
                       </div>
-                      {/* Assuming Badge component exists */}
                       <Badge variant={event.status === "completed" ? "secondary" : "default"}>
                         {event.status}
                       </Badge>
@@ -294,8 +323,8 @@ export default function SchedulePage() {
                       <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         <span>
-                          {format(parseISO(event.startTime), "PPp")} -{" "}
-                          {format(parseISO(event.endTime), "p")}
+                          {format(new Date(event.startTime), "PPp")} -{" "}
+                          {format(new Date(event.endTime), "p")}
                         </span>
                       </div>
                       {event.attendees?.length > 0 && (
