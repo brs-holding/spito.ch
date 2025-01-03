@@ -685,3 +685,76 @@ export type TaskComment = typeof taskComments.$inferSelect;
 export type InsertTaskComment = typeof taskComments.$inferInsert;
 export type TaskHistory = typeof taskHistory.$inferSelect;
 export type InsertTaskHistory = typeof taskHistory.$inferInsert;
+
+
+export const calendarEvents = pgTable("calendar_events", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  timezone: text("timezone").default("Europe/Zurich").notNull(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
+  createdById: integer("created_by_id").references(() => users.id).notNull(),
+  patientId: integer("patient_id").references(() => patients.id),
+  status: text("status", {
+    enum: ["scheduled", "cancelled", "completed"]
+  }).default("scheduled").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const calendarEventAttendees = pgTable("calendar_event_attendees", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").references(() => calendarEvents.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  status: text("status", {
+    enum: ["pending", "accepted", "declined"]
+  }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const calendarEventRelations = relations(calendarEvents, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [calendarEvents.createdById],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [calendarEvents.organizationId],
+    references: [organizations.id],
+  }),
+  patient: one(patients, {
+    fields: [calendarEvents.patientId],
+    references: [patients.id],
+  }),
+  attendees: many(calendarEventAttendees),
+}));
+
+export const calendarEventAttendeeRelations = relations(calendarEventAttendees, ({ one }) => ({
+  event: one(calendarEvents, {
+    fields: [calendarEventAttendees.eventId],
+    references: [calendarEvents.id],
+  }),
+  user: one(users, {
+    fields: [calendarEventAttendees.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents, {
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
+  timezone: z.string().optional(),
+  patientId: z.number().optional(),
+  status: z.enum(["scheduled", "cancelled", "completed"]).optional(),
+  metadata: z.object({}).passthrough().optional(),
+});
+
+export const selectCalendarEventSchema = createSelectSchema(calendarEvents);
+
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
+export type CalendarEventAttendee = typeof calendarEventAttendees.$inferSelect;

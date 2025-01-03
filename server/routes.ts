@@ -514,326 +514,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Tasks Routes
-  app.get("/api/tasks", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      let tasksQuery;
-
-      // Filter tasks based on user role and relationships
-      if (req.user.role === "spitex_employee") {
-        // Employees see tasks assigned to them within their organization
-        tasksQuery = db
-          .select({
-            id: tasks.id,
-            title: tasks.title,
-            description: tasks.description,
-            dueDate: tasks.dueDate,
-            priority: tasks.priority,
-            status: tasks.status,
-            patientId: tasks.patientId,
-            createdById: tasks.createdById,
-            createdAt: tasks.createdAt,
-            updatedAt: tasks.updatedAt,
-            assignments: taskAssignments
-          })
-          .from(tasks)
-          .innerJoin(taskAssignments, eq(tasks.id, taskAssignments.taskId))
-          .innerJoin(users, eq(tasks.createdById, users.id))
-          .where(
-            and(
-              eq(taskAssignments.assignedToId, req.user.id),
-              eq(users.organizationId, req.user.organizationId!)
-            )
-          );
-      } else if (req.user.role === "spitex_org") {
-        // Organizations see tasks within their organization
-        tasksQuery = db
-          .select()
-          .from(tasks)
-          .innerJoin(users, eq(tasks.createdById, users.id))
-          .where(eq(users.organizationId, req.user.organizationId!));
-      } else {
-        return res.status(403).send("Not authorized to view tasks");
-      }
-
-      const allTasks = await tasksQuery;
-      res.json(allTasks);
-    } catch (error: any) {
-      console.error("Error fetching tasks:", error);
-      res.status(500).json({
-        message: "Failed to fetch tasks",
-        error: error.message,
-      });
-    }
-  });
-
-  app.post("/api/tasks", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    if (req.user.role !== "spitex_org" && req.user.role !== "super_admin") {
-      return res.status(403).send("Not authorized to create tasks");
-    }
-
-    try {
-      const result = insertTaskSchema.safeParse({
-        ...req.body,
-        createdById: req.user.id,
-      });
-
-      if (!result.success) {
-        return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
-      }
-
-      const { title, description, dueDate, patientId, assignedToIds, priority = "medium", status = "pending" } = result.data;
-
-      // Create the task
-      const [newTask] = await db
-        .insert(tasks)
-        .values({
-          title,
-          description,
-          dueDate: new Date(dueDate),
-          patientId,
-          createdById: req.user.id,
-          priority,
-          status,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .returning();
-
-      // Create task assignments
-      const assignments = await Promise.all(
-        assignedToIds.map(async (assignedToId) => {
-          const [assignment] = await db
-            .insert(taskAssignments)
-            .values({
-              taskId: newTask.id,
-              assignedToId,
-              assignedAt: new Date(),
-            })
-            .returning();
-          return assignment;
-        })
-      );
-
-      res.json({ ...newTask, assignments });
-    } catch (error: any) {
-      console.error("Error creating task:", error);
-      res.status(500).json({
-        message: "Failed to create task",
-        error: error.message,
-      });
-    }
-  });
-
-  app.patch("/api/tasks/:id/status", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    const taskId = parseInt(req.params.id);
-    const { status } = req.body;
-
-    try {
-      // Check if user is assigned to this task
-      const [assignment] = await db
-        .select()
-        .from(taskAssignments)
-        .where(
-          and(
-            eq(taskAssignments.taskId, taskId),
-            eq(taskAssignments.assignedToId, req.user.id)
-          )
-        )
-        .limit(1);
-
-      if (!assignment && req.user.role !== "spitex_org" && req.user.role !== "super_admin") {
-        return res.status(403).send("Not authorized to update this task");
-      }
-
-      const [updatedTask] = await db
-        .update(tasks)
-        .set({
-          status,
-          updatedAt: new Date()
-        })
-        .where(eq(tasks.id, taskId))
-        .returning();
-
-      res.json(updatedTask);
-    } catch (error: any) {
-      console.error("Error updating task status:", error);
-      res.status(500).json({
-        message: "Failed to update task status",
-        error: error.message,
-      });
-    }
-  });
-
-  // Get tasks for a specific patient
-  app.get("/api/patients/:id/tasks", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const patientId = parseInt(req.params.id);
-
-      // Verify access to patient
-      const [patient] = await db
-        .select()
-        .from(patients)
-        .where(
-          and(
-            eq(patients.id, patientId),
-            eq(patients.organizationId, req.user.organizationId!)
-          )
-        )
-        .limit(1);
-
-      if (!patient) {
-        return res.status(404).send("Patient not found");
-      }
-
-      // Get tasks for the patient with assignments
-      const patientTasks = await db
-        .select()
-        .from(tasks)
-        .where(eq(tasks.patientId, patientId))
-        .innerJoin(taskAssignments, eq(tasks.id, taskAssignments.taskId))
-        .innerJoin(users, eq(taskAssignments.assignedToId, users.id));
-
-      res.json(patientTasks);
-    } catch (error: any) {
-      console.error("Error fetching patient tasks:", error);
-      res.status(500).json({
-        message: "Failed to fetch patient tasks",
-        error: error.message,
-      });
-    }
-  });
-
-  // Patient Profile Routes (UPDATED)
-  app.get("/api/patients", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      let query;
-
-      // Filter patients based on user role and organization
-      if (req.user.role === "spitex_org" || req.user.role === "spitex_employee") {
-        // Get organization's patients only
-        query = db
-          .select({
-            id: patients.id,
-            firstName: patients.firstName,
-            lastName: patients.lastName,
-            dateOfBirth: patients.dateOfBirth,
-            gender: patients.gender,
-            email: patients.email,
-            phone: patients.phone,
-            address: patients.address,
-            emergencyContact: patients.emergencyContact,
-            medicalHistory: patients.medicalHistory,
-            currentDiagnoses: patients.currentDiagnoses,
-            allergies: patients.allergies,
-            preferences: patients.preferences,
-            createdAt: patients.createdAt,
-            updatedAt: patients.updatedAt,
-          })
-          .from(patients)
-          .where(eq(patients.organizationId, req.user.organizationId!));
-      } else {
-        // Other roles are not authorized to view patient data
-        return res.status(403).send("Not authorized to view patient data");
-      }
-
-      const allPatients = await query;
-      res.json(allPatients);
-    } catch (error: any) {
-      console.error("Error fetching patients:", error);
-      res.status(500).json({
-        message: "Failed to fetch patients",
-        error: error.message,
-      });
-    }
-  });
-
-  // Create patient endpoint (UPDATED)
-  app.post("/api/patients", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    if (req.user.role !== "spitex_org" && req.user.role !== "spitex_employee") {
-      return res.status(403).send("Not authorized to create patients");
-    }
-
-    try {
-      const patientData = {
-        ...req.body,
-        organizationId: req.user.organizationId,
-        dateOfBirth: new Date(req.body.dateOfBirth),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const [newPatient] = await db
-        .insert(patients)
-        .values(patientData)
-        .returning();
-
-      res.json(newPatient);
-    } catch (error: any) {
-      console.error("Error creating patient:", error);
-      res.status(500).json({
-        message: "Failed to create patient",
-        error: error.message,
-      });
-    }
-  });
-
-  // Get single patient endpoint (UPDATED)
-  app.get("/api/patients/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const [patient] = await db
-        .select()
-        .from(patients)
-        .where(
-          and(
-            eq(patients.id, parseInt(req.params.id)),
-            eq(patients.organizationId, req.user.organizationId!)
-          )
-        )
-        .limit(1);
-
-      if (!patient) {
-        return res.status(404).send("Patient not found");
-      }
-
-      res.json(patient);
-    } catch (error: any) {
-      console.error("Error fetching patient:", error);
-      res.status(500).json({
-        message: "Failed to fetch patient",
-        error: error.message,
-      });
-    }
-  });
-
   // Update patient endpoint (NEW)
   app.put("/api/patients/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -1331,7 +1011,7 @@ export function registerRoutes(app: Express): Server {
           count: sql<number>`count(*)::int`,
         })
         .from(tasks)
-        .groupBy(tasks.status);
+                .groupBy(tasks.status);
 
       const completionRate = taskStats.map(stat => ({
         name: stat.status,
@@ -1580,6 +1260,346 @@ export function registerRoutes(app: Express): Server {
       console.error("Error generating invoice PDF:", error);
       res.status(500).json({
         message: "Failed to generate invoice PDF",
+        error: error.message,
+      });
+    }
+  });
+
+  // Add these routes after the existing routes
+  // Calendar Routes
+  app.get("/api/calendar", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      // Get all calendar events for the organization
+      const events = await db
+        .select({
+          id: calendarEvents.id,
+          title: calendarEvents.title,
+          description: calendarEvents.description,
+          startTime: calendarEvents.startTime,
+          endTime: calendarEvents.endTime,
+          timezone: calendarEvents.timezone,
+          status: calendarEvents.status,
+          metadata: calendarEvents.metadata,
+          createdById: calendarEvents.createdById,
+          patientId: calendarEvents.patientId,
+          createdAt: calendarEvents.createdAt,
+        })
+        .from(calendarEvents)
+        .where(eq(calendarEvents.organizationId, req.user.organizationId!))
+        .orderBy(desc(calendarEvents.startTime));
+
+      // Get attendees for each event
+      const eventsWithAttendees = await Promise.all(
+        events.map(async (event) => {
+          const attendees = await db
+            .select({
+              id: calendarEventAttendees.id,
+              userId: calendarEventAttendees.userId,
+              status: calendarEventAttendees.status,
+            })
+            .from(calendarEventAttendees)
+            .where(eq(calendarEventAttendees.eventId, event.id))
+            .innerJoin(users, eq(calendarEventAttendees.userId, users.id));
+
+          return {
+            ...event,
+            attendees,
+          };
+        })
+      );
+
+      res.json(eventsWithAttendees);
+    } catch (error: any) {
+      console.error("Error fetching calendar events:", error);
+      res.status(500).json({
+        message: "Failed to fetch calendar events",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/calendar", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const result = insertCalendarEventSchema.safeParse(req.body);
+
+      if (!result.success) {
+        return res.status(400).send(
+          "Invalid input: " + result.error.issues.map((i) => i.message).join(", ")
+        );
+      }
+
+      const { title, description, startTime, endTime, timezone = "Europe/Zurich", patientId, status, metadata } = result.data;
+
+      // Create the calendar event
+      const [newEvent] = await db
+        .insert(calendarEvents)
+        .values({
+          title,
+          description,
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+          timezone,
+          organizationId: req.user.organizationId!,
+          createdById: req.user.id,
+          patientId,
+          status,
+          metadata,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      // Add attendees if provided
+      if (req.body.attendeeIds && Array.isArray(req.body.attendeeIds)) {
+        const attendeePromises = req.body.attendeeIds.map(async (userId: number) => {
+          // Verify user belongs to organization
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(
+              and(
+                eq(users.id, userId),
+                eq(users.organizationId, req.user.organizationId!)
+              )
+            )
+            .limit(1);
+
+          if (!user) {
+            throw new Error(`User ${userId} not found in organization`);
+          }
+
+          const [attendee] = await db
+            .insert(calendarEventAttendees)
+            .values({
+              eventId: newEvent.id,
+              userId,
+              status: "pending",
+              createdAt: new Date(),
+            })
+            .returning();
+
+          return attendee;
+        });
+
+        const attendees = await Promise.all(attendeePromises);
+        newEvent.attendees = attendees;
+      }
+
+      res.json(newEvent);
+    } catch (error: any) {
+      console.error("Error creating calendar event:", error);
+      res.status(500).json({
+        message: "Failed to create calendar event",
+        error: error.message,
+      });
+    }
+  });
+
+  app.patch("/api/calendar/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const eventId = parseInt(req.params.id);
+
+      // Verify event belongs to organization
+      const [event] = await db
+        .select()
+        .from(calendarEvents)
+        .where(
+          and(
+            eq(calendarEvents.id, eventId),
+            eq(calendarEvents.organizationId, req.user.organizationId!)
+          )
+        )
+        .limit(1);
+
+      if (!event) {
+        return res.status(404).send("Event not found");
+      }
+
+      const [updatedEvent] = await db
+        .update(calendarEvents)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
+        .where(eq(calendarEvents.id, eventId))
+        .returning();
+
+      res.json(updatedEvent);
+    } catch (error: any) {
+      console.error("Error updating calendar event:", error);
+      res.status(500).json({
+        message: "Failed to update calendar event",
+        error: error.message,
+      });
+    }
+  });
+
+  app.delete("/api/calendar/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const eventId = parseInt(req.params.id);
+
+      // Verify event belongs to organization
+      const [event] = await db
+        .select()
+        .from(calendarEvents)
+        .where(
+          and(
+            eq(calendarEvents.id, eventId),
+            eq(calendarEvents.organizationId, req.user.organizationId!)
+          )
+        )
+        .limit(1);
+
+      if (!event) {
+        return res.status(404).send("Event not found");
+      }
+
+      // Delete attendees first
+      await db
+        .delete(calendarEventAttendees)
+        .where(eq(calendarEventAttendees.eventId, eventId));
+
+      // Delete the event
+      const [deletedEvent] = await db
+        .delete(calendarEvents)
+        .where(eq(calendarEvents.id, eventId))
+        .returning();
+
+      res.json({ message: "Event deleted successfully", event: deletedEvent });
+    } catch (error: any) {
+      console.error("Error deleting calendar event:", error);
+      res.status(500).json({
+        message: "Failed to delete calendar event",
+        error: error.message,
+      });
+    }
+  });
+
+  // Calendar Attendee Routes
+  app.post("/api/calendar/:id/attendees", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const eventId = parseInt(req.params.id);
+      const { userId } = req.body;
+
+      // Verify event belongs to organization
+      const [event] = await db
+        .select()
+        .from(calendarEvents)
+        .where(
+          and(
+            eq(calendarEvents.id, eventId),
+            eq(calendarEvents.organizationId, req.user.organizationId!)
+          )
+        )
+        .limit(1);
+
+      if (!event) {
+        return res.status(404).send("Event not found");
+      }
+
+      // Verify user belongs to organization
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.id, userId),
+            eq(users.organizationId, req.user.organizationId!)
+          )
+        )
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).send("User not found in organization");
+      }
+
+      const [attendee] = await db
+        .insert(calendarEventAttendees)
+        .values({
+          eventId,
+          userId,
+          status: "pending",
+          createdAt: new Date(),
+        })
+        .returning();
+
+      res.json(attendee);
+    } catch (error: any) {
+      console.error("Error adding calendar event attendee:", error);
+      res.status(500).json({
+        message: "Failed to add calendar event attendee",
+        error: error.message,
+      });
+    }
+  });
+
+  app.patch("/api/calendar/:eventId/attendees/:userId/status", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const userId = parseInt(req.params.userId);
+      const { status } = req.body;
+
+      if (!["pending", "accepted", "declined"].includes(status)) {
+        return res.status(400).send("Invalid status");
+      }
+
+      // Verify event belongs to organization
+      const [event] = await db
+        .select()
+        .from(calendarEvents)
+        .where(
+          and(
+            eq(calendarEvents.id, eventId),
+            eq(calendarEvents.organizationId, req.user.organizationId!)
+          )
+        )
+        .limit(1);
+
+      if (!event) {
+        return res.status(404).send("Event not found");
+      }
+
+      // Update attendee status
+      const [updatedAttendee] = await db
+        .update(calendarEventAttendees)
+        .set({ status })
+        .where(
+          and(
+            eq(calendarEventAttendees.eventId, eventId),
+            eq(calendarEventAttendees.userId, userId)
+          )
+        )
+        .returning();
+
+      res.json(updatedAttendee);
+    } catch (error: any) {
+      console.error("Error updating calendar event attendee status:", error);
+      res.status(500).json({
+        message: "Failed to update calendar event attendee status",
         error: error.message,
       });
     }
