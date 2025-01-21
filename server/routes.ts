@@ -312,7 +312,7 @@ export function registerRoutes(app: Express): Server {
       const providers = await db
         .select()
         .from(users)
-        .where(eq(users.role, "doctor"));
+        .where(eq(users.role, "spitex_employee"));
 
       // Generate available time slots
       const timeSlots = [];
@@ -333,8 +333,11 @@ export function registerRoutes(app: Express): Server {
             .where(
               and(
                 eq(appointments.providerId, provider.id),
-                gte(appointments.scheduledFor, currentTime),
-                lte(appointments.scheduledFor, slotEnd)
+                eq(sql`DATE(${appointments.scheduledFor})`, sql`DATE(${currentTime})`),
+                and(
+                  lte(appointments.scheduledFor, slotEnd),
+                  gte(sql`DATE_ADD(${appointments.scheduledFor}, INTERVAL ${appointments.duration} MINUTE)`, currentTime)
+                )
               )
             )
             .limit(1);
@@ -952,7 +955,7 @@ export function registerRoutes(app: Express): Server {
     const medicationDetails = await db
       .select()
       .from(medications)
-      .where(eq(medications.id, medicationIds[0])); // Using first ID as example
+      .where(eq(medications.id, medicationIds[0])); 
 
     res.json({ schedules, medications: medicationDetails });
   });
