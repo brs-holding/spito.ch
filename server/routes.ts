@@ -2,32 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { crypto } from "./utils/crypto";
-import {
-  users,
-  insertUserSchema,
-  patients,
-  appointments,
-  providerSchedules,
-  serviceLogs,
-  carePlans,
-  tasks,
-  taskAssignments,
-  insertTaskSchema,
-  progress,
-  healthMetrics,
-  medications,
-  medicationSchedules,
-  medicationAdherence,
-  insuranceDetails,
-  patientDocuments,
-  visitLogs,
-  videoSessions,
-  notifications,
-  invoices,
-  insertInvoiceSchema,
-} from "@db/schema";
-import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
+import { users, organizations } from "@db/schema";
+import { eq } from "drizzle-orm";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -37,6 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export function registerRoutes(app: Express): Server {
+  // Setup auth first - important to have this before other routes
   setupAuth(app);
 
   // Increase payload size limit for base64 images
@@ -1005,13 +982,13 @@ export function registerRoutes(app: Express): Server {
 
     try {
       // Get task completion metrics
-      const taskStats = await db
+            const taskStats = await db
         .select({
           status: tasks.status,
           count: sql<number>`count(*)::int`,
         })
         .from(tasks)
-                .groupBy(tasks.status);
+        .groupBy(tasks.status);
 
       const completionRate = taskStats.map(stat => ({
         name: stat.status,
@@ -1024,8 +1001,7 @@ export function registerRoutes(app: Express): Server {
       res.status(500).json({
         message: "Failed to fetch task analytics",
         error: error.message,
-      });
-    }
+      });    }
   });
 
   app.get("/api/analytics/patients", async (req, res) => {
@@ -1188,174 +1164,8 @@ export function registerRoutes(app: Express): Server {
 
       const [newInvoice] = await db
         .insert(invoices)
-        .values(invoiceData)
-        .returning();
-
-      // Create notification for the patient
-      await db.insert(notifications).values({
-        userId: invoiceData.patientId,
-        title: "New Invoice Created",
-        message: `A new invoice (#${invoiceNumber}) has been created for your services`,
-        type: "invoice_created",
-        priority: "normal",
-        isRead: false,
-        createdAt: new Date(),
-        metadata: {
-          invoiceId: newInvoice.id,
-          invoiceNumber: invoiceNumber,
         }
-      });
-
-      res.json(newInvoice);
-    } catch (error: any) {
-      console.error("Error creating invoice:", error);
-      res.status(500).json({
-        message: "Failed to create invoice",
-        error: error.message,
-      });
-    }
-  });
-
-  app.get("/api/invoices/:id/pdf", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const invoiceId = parseInt(req.params.id);
-      const [invoice] = await db
-        .select()
-        .from(invoices)
-        .where(eq(invoices.id, invoiceId))
-        .limit(1);
-
-      if (!invoice) {
-        return res.status(404).send("Invoice not found");
-      }
-
-      // Check authorization
-      if (req.user.role === "spitex_org") {
-        if (invoice.organizationId !== req.user.organizationId) {
-          return res.status(403).send("Not authorized to access this invoice");
-        }
-      } else if (req.user.role === "patient") {
-        const [patient] = await db
-          .select()
-          .from(patients)
-          .where(eq(patients.userId, req.user.id))
-          .limit(1);
-
-        if (!patient || invoice.patientId !== patient.id) {
-          return res.status(403).send("Not authorized to access this invoice");
-        }
-      } else {
-        return res.status(403).send("Not authorized to access invoices");
-      }
-
-      // TODO: Generate PDF
-      // For now, send a simple text response
-      res.setHeader('Content-Type', 'text/plain');
-      res.send(`Invoice #${invoice.invoiceNumber}\nAmount: ${invoice.totalAmount}`);
-    } catch (error: any) {
-      console.error("Error generating invoice PDF:", error);
-      res.status(500).json({
-        message: "Failed to generate invoice PDF",
-        error: error.message,
-      });
-    }
-  });
-
-  // Add these routes after the existing routes
-  // Calendar Routes
-  app.get("/api/calendar", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      // Get all calendar events for the organization
-      const events = await db
-        .select({
-          id: calendarEvents.id,
-          title: calendarEvents.title,
-          description: calendarEvents.description,
-          startTime: calendarEvents.startTime,
-          endTime: calendarEvents.endTime,
-          timezone: calendarEvents.timezone,
-          status: calendarEvents.status,
-          metadata: calendarEvents.metadata,
-          createdById: calendarEvents.createdById,
-          patientId: calendarEvents.patientId,
-          createdAt: calendarEvents.createdAt,
-        })
-        .from(calendarEvents)
-        .where(eq(calendarEvents.organizationId, req.user.organizationId!))
-        .orderBy(desc(calendarEvents.startTime));
-
-      // Get attendees for each event
-      const eventsWithAttendees = await Promise.all(
-        events.map(async (event) => {
-          const attendees = await db
-            .select({
-              id: calendarEventAttendees.id,
-              userId: calendarEventAttendees.userId,
-              status: calendarEventAttendees.status,
-            })
-            .from(calendarEventAttendees)
-            .where(eq(calendarEventAttendees.eventId, event.id))
-            .innerJoin(users, eq(calendarEventAttendees.userId, users.id));
-
-          return {
-            ...event,
-            attendees,
-          };
-        })
       );
-
-      res.json(eventsWithAttendees);
-    } catch (error: any) {
-      console.error("Error fetching calendar events:", error);
-      res.status(500).json({
-        message: "Failed to fetch calendar events",
-        error: error.message,
-      });
-    }
-  });
-
-  app.post("/api/calendar", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const result = insertCalendarEventSchema.safeParse(req.body);
-
-      if (!result.success) {
-        return res.status(400).send(
-          "Invalid input: " + result.error.issues.map((i) => i.message).join(", ")
-        );
-      }
-
-      const { title, description, startTime, endTime, timezone = "Europe/Zurich", patientId, status, metadata } = result.data;
-
-      // Create the calendar event
-      const [newEvent] = await db
-        .insert(calendarEvents)
-        .values({
-          title,
-          description,
-          startTime: new Date(startTime),
-          endTime: new Date(endTime),
-          timezone,
-          organizationId: req.user.organizationId!,
-          createdById: req.user.id,
-          patientId,
-          status,
-          metadata,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .returning();
 
       // Add attendees if provided
       if (req.body.attendeeIds && Array.isArray(req.body.attendeeIds)) {
