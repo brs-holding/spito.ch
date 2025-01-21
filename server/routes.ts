@@ -308,7 +308,7 @@ export function registerRoutes(app: Express): Server {
         endDate.setHours(23, 59, 59, 999);
       }
 
-      // Get all providers with their schedules
+      // Get all providers
       const providers = await db
         .select()
         .from(users)
@@ -320,36 +320,42 @@ export function registerRoutes(app: Express): Server {
 
       for (const provider of providers) {
         let currentTime = new Date(startDate);
+        currentTime.setHours(9, 0, 0, 0); // Start at 9 AM
 
         // Generate slots from 9 AM to 5 PM
-        while (currentTime <= endDate) {
-          if (currentTime.getHours() >= 9 && currentTime.getHours() < 17) {
-            // Check if slot is already booked
-            const existingAppointment = await db
-              .select()
-              .from(appointments)
-              .where(
-                and(
-                  eq(appointments.providerId, provider.id),
-                  gte(appointments.scheduledFor, currentTime),
-                  lte(sql`date_add(${appointments.scheduledFor}, interval ${appointments.duration} minute)`, currentTime)
-                )
-              )
-              .limit(1);
+        while (currentTime.getHours() < 17) {
+          const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
 
-            if (existingAppointment.length === 0) {
-              timeSlots.push({
-                providerId: provider.id,
-                providerName: provider.fullName,
-                startTime: new Date(currentTime),
-                endTime: new Date(currentTime.getTime() + slotDuration * 60000),
-                available: true
-              });
-            }
+          // Check if slot is already booked
+          const existingAppointment = await db
+            .select()
+            .from(appointments)
+            .where(
+              and(
+                eq(appointments.providerId, provider.id),
+                gte(appointments.scheduledFor, currentTime),
+                lte(appointments.scheduledFor, slotEnd)
+              )
+            )
+            .limit(1);
+
+          if (existingAppointment.length === 0) {
+            timeSlots.push({
+              providerId: provider.id,
+              providerName: provider.fullName || provider.username,
+              startTime: new Date(currentTime),
+              endTime: slotEnd,
+              available: true
+            });
           }
+
+          // Move to next slot
           currentTime = new Date(currentTime.getTime() + slotDuration * 60000);
         }
       }
+
+      // Sort time slots by time
+      timeSlots.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
       res.json(timeSlots);
     } catch (error: any) {
@@ -360,6 +366,7 @@ export function registerRoutes(app: Express): Server {
       });
     }
   });
+
   // Appointment Routes (UPDATED)
   app.post("/api/appointments", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
@@ -975,9 +982,7 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/patient/medication-adherence/:scheduleId", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
-    }
-
-    try {
+    }    try {
       const scheduleId = parseInt(req.params.scheduleId);
       const adherenceRecords = await db
         .select()
