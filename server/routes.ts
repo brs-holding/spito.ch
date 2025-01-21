@@ -7,9 +7,9 @@ import { dirname } from "path";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import fs from "fs";
-import { 
-  users, 
-  patients, 
+import {
+  users,
+  patients,
   journalEntries,
   appointments,
   providerSchedules,
@@ -1683,7 +1683,7 @@ export function registerRoutes(app: Express): Server {
 
     try {
       const patientId = parseInt(req.params.id);
-      const { title, content } = req.body;
+      const { title, content, entryDate } = req.body;
       const documentUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
       const [newEntry] = await db
@@ -1694,26 +1694,11 @@ export function registerRoutes(app: Express): Server {
           content,
           documentUrl,
           createdBy: req.user!.id,
-          createdAt: new Date(),
+          createdAt: entryDate ? new Date(entryDate) : new Date(),
         })
         .returning();
 
-      // Get the created entry with user details
-      const [entryWithUser] = await db
-        .select({
-          id: journalEntries.id,
-          title: journalEntries.title,
-          content: journalEntries.content,
-          documentUrl: journalEntries.documentUrl,
-          createdAt: journalEntries.createdAt,
-          createdBy: users.fullName,
-        })
-        .from(journalEntries)
-        .innerJoin(users, eq(journalEntries.createdBy, users.id))
-        .where(eq(journalEntries.id, newEntry.id))
-        .limit(1);
-
-      res.json(entryWithUser);
+      res.json(newEntry);
     } catch (error: any) {
       console.error("Error creating journal entry:", error);
       res.status(500).json({

@@ -27,6 +27,7 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
   const [newEntry, setNewEntry] = useState({
     title: "",
     content: "",
+    entryDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
   });
   const [file, setFile] = useState<File | null>(null);
   const { toast } = useToast();
@@ -41,6 +42,7 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("content", data.content);
+      formData.append("entryDate", data.entryDate);
       if (data.file) {
         formData.append("journalDocument", data.file);
       }
@@ -59,7 +61,7 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/patients/${patientId}/journal`] });
-      setNewEntry({ title: "", content: "" });
+      setNewEntry({ title: "", content: "", entryDate: format(new Date(), "yyyy-MM-dd'T'HH:mm") });
       setFile(null);
       toast({
         title: "Success",
@@ -99,6 +101,15 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
                 placeholder="Entry title..."
                 value={newEntry.title}
                 onChange={(e) => setNewEntry({ ...newEntry, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="entryDate">Date and Time</Label>
+              <Input
+                id="entryDate"
+                type="datetime-local"
+                value={newEntry.entryDate}
+                onChange={(e) => setNewEntry({ ...newEntry, entryDate: e.target.value })}
               />
             </div>
             <div className="space-y-2">
