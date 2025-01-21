@@ -1,45 +1,65 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
-import ws from "ws";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import * as schema from "@db/schema";
-import { sql } from 'drizzle-orm';
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
-// Configure database with SSL and better error handling
-const db = drizzle({
+// Configure PostgreSQL pool with SSL and better error handling
+const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  schema,
-  ws: ws,
-  ssl: true,
+  ssl: {
+    rejectUnauthorized: false // Required for some PostgreSQL providers
+  },
+  max: 20, // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+  retryDelay: 1000, // Time between retries
+  maxRetries: 3 // Maximum number of retries
 });
 
-// Test database connection function
-export async function testDatabaseConnection() {
-  try {
-    // Attempt a simple query to verify connection
-    const result = await db.execute(sql`SELECT 1`);
-    console.log("Database connection successful");
-    return true;
-  } catch (error) {
-    console.error("Database connection failed:", error);
-    throw error;
+// Add error handler for the pool
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
+
+// Initialize drizzle with the pool
+export const db = drizzle(pool, { schema });
+
+// Test database connection function with retries
+export async function testDatabaseConnection(retries = 3): Promise<boolean> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const client = await pool.connect();
+      try {
+        await client.query('SELECT 1');
+        console.log(`Database connection successful on attempt ${attempt}`);
+        return true;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error(`Database connection attempt ${attempt} failed:`, error);
+      if (attempt === retries) {
+        throw error;
+      }
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
+  return false;
 }
 
-// Original initializeDatabase function (keeping for potential future use or modification)
+// Initialize database function
 export async function initializeDatabase() {
   try {
     console.log('Initializing database connection...');    
-    // Test the connection
-    await db.execute(sql`SELECT 1`);
-    console.log('Database connection successful');
+    await testDatabaseConnection();
     return true;
   } catch (error) {
     console.error('Database initialization failed:', error);
     throw error;
   }
 }
-
-export { db };
