@@ -308,17 +308,22 @@ export function registerRoutes(app: Express): Server {
         endDate.setHours(23, 59, 59, 999);
       }
 
+      console.log("Fetching schedules for date:", startDate);
+
       // Get all providers
       const providers = await db
         .select()
         .from(users)
         .where(eq(users.role, "spitex_employee"));
 
+      console.log("Found providers:", providers.length);
+
       // Generate available time slots
       const timeSlots = [];
       const slotDuration = 30; // 30 minutes per slot
 
       for (const provider of providers) {
+        console.log("Generating slots for provider:", provider.id);
         let currentTime = new Date(startDate);
         currentTime.setHours(9, 0, 0, 0); // Start at 9 AM
 
@@ -326,21 +331,28 @@ export function registerRoutes(app: Express): Server {
         while (currentTime.getHours() < 17) {
           const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
 
-          // Check if slot is already booked
+          // Simplified booking check
           const existingAppointment = await db
             .select()
             .from(appointments)
             .where(
               and(
                 eq(appointments.providerId, provider.id),
-                eq(sql`DATE(${appointments.scheduledFor})`, sql`DATE(${currentTime})`),
-                and(
-                  lte(appointments.scheduledFor, slotEnd),
-                  gte(sql`DATE_ADD(${appointments.scheduledFor}, INTERVAL ${appointments.duration} MINUTE)`, currentTime)
-                )
+                eq(
+                  sql`DATE(${appointments.scheduledFor})`,
+                  sql`DATE(${currentTime})`
+                ),
+                eq(sql`TIME(${appointments.scheduledFor})`, sql`TIME(${currentTime})`)
               )
             )
             .limit(1);
+
+          console.log(
+            "Checking slot:",
+            currentTime.toISOString(),
+            "- Booked:",
+            existingAppointment.length > 0
+          );
 
           if (existingAppointment.length === 0) {
             timeSlots.push({
@@ -356,6 +368,8 @@ export function registerRoutes(app: Express): Server {
           currentTime = new Date(currentTime.getTime() + slotDuration * 60000);
         }
       }
+
+      console.log("Generated time slots:", timeSlots.length);
 
       // Sort time slots by time
       timeSlots.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
@@ -955,7 +969,7 @@ export function registerRoutes(app: Express): Server {
     const medicationDetails = await db
       .select()
       .from(medications)
-      .where(eq(medications.id, medicationIds[0])); 
+      .where(eq(medications.id, medicationIds[0]));
 
     res.json({ schedules, medications: medicationDetails });
   });
