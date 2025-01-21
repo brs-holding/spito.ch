@@ -43,7 +43,12 @@ const __dirname = dirname(__filename);
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, path.join(__dirname, "..", "uploads"));
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(__dirname, "..", "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
   },
   filename: (_req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
@@ -53,11 +58,11 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, "..", "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Ensure uploads directory exists (This line is now redundant and can be removed)
+//const uploadsDir = path.join(__dirname, "..", "uploads");
+//if (!fs.existsSync(uploadsDir)) {
+//  fs.mkdirSync(uploadsDir, { recursive: true });
+//}
 
 export function registerRoutes(app: Express): Server {
   // Set up authentication first
@@ -672,14 +677,23 @@ export function registerRoutes(app: Express): Server {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
-    const documents = await db
-      .select()
-      .from(patientDocuments)
-      .where(eq(patientDocuments.patientId, parseInt(req.params.id)));
-    res.json(documents);
+    try {
+      const documents = await db
+        .select()
+        .from(patientDocuments)
+        .where(eq(patientDocuments.patientId, parseInt(req.params.id)))
+        .orderBy(desc(patientDocuments.uploadedAt));
+      res.json(documents);
+    } catch (error: any) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({
+        message: "Failed to fetch documents",
+        error: error.message,
+      });
+    }
   });
 
-  app.post("/api/patients/:id/documents", upload.single("file"), async (req, res) => {
+  app.post("/api/patients/:id/documents", upload.single("document"), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -690,19 +704,16 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Create document record with the file path
-      const documentData = {
-        patientId: parseInt(req.params.id),
-        uploadedBy: req.user!.id,
-        title: req.body.title || req.file.originalname,
-        type: req.body.type || "other",
-        fileUrl: `/uploads/${req.file.filename}`,
-        metadata: req.body.metadata || {},
-        uploadedAt: new Date(),
-      };
-
       const [newDocument] = await db
         .insert(patientDocuments)
-        .values(documentData)
+        .values({
+          patientId: parseInt(req.params.id),
+          uploadedBy: req.user!.id,
+          title: req.body.title,
+          type: req.body.type,
+          fileUrl: `/uploads/${req.file.filename}`,
+          uploadedAt: new Date(),
+        })
         .returning();
 
       res.json(newDocument);
@@ -721,22 +732,23 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      const documentId = parseInt(req.params.id);
       const [document] = await db
         .select()
         .from(patientDocuments)
-        .where(eq(patientDocuments.id, documentId))
+        .where(eq(patientDocuments.id, parseInt(req.params.id)))
         .limit(1);
 
       if (!document) {
         return res.status(404).send("Document not found");
       }
 
-      // For now, we'll send a sample PDF file
-      const samplePdfPath = path.join(__dirname, "..", "sample.pdf");
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'inline; filename=document.pdf');
-      res.sendFile(samplePdfPath);
+      // Remove the leading slash from fileUrl
+      const filePath = path.join(__dirname, "..", document.fileUrl.slice(1));
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).send("File not found");
+      }
+
+      res.sendFile(filePath);
     } catch (error: any) {
       console.error("Error previewing document:", error);
       res.status(500).json({
@@ -752,22 +764,23 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      const documentId = parseInt(req.params.id);
       const [document] = await db
         .select()
         .from(patientDocuments)
-        .where(eq(patientDocuments.id, documentId))
+        .where(eq(patientDocuments.id, parseInt(req.params.id)))
         .limit(1);
 
       if (!document) {
         return res.status(404).send("Document not found");
       }
 
-      // For now, we'll send a sample PDF file
-      const samplePdfPath = path.join(__dirname, "..", "sample.pdf");
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename=document.pdf');
-      res.sendFile(samplePdfPath);
+      // Remove the leading slash from fileUrl
+      const filePath = path.join(__dirname, "..", document.fileUrl.slice(1));
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).send("File not found");
+      }
+
+      res.download(filePath);
     } catch (error: any) {
       console.error("Error downloading document:", error);
       res.status(500).json({
@@ -988,7 +1001,7 @@ export function registerRoutes(app: Express): Server {
   // Video Session Routes
   app.post("/api/appointments/:id/session", async (req, res) => {
     if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
+      return res.status(401).send("Notauthenticated");
     }
 
     const appointmentId = parseInt(req.params.id);
