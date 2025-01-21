@@ -8,10 +8,20 @@ type RequestResult = {
   message: string;
 };
 
+type RegisterData = {
+  username: string;
+  password: string;
+  fullName: string;
+  email: string;
+  role: string;
+  organizationName?: string;
+  organizationType?: string;
+};
+
 async function handleRequest(
   url: string,
   method: string,
-  body?: { username: string; password: string; fullName?: string; }
+  body?: { username: string; password: string; } | RegisterData
 ): Promise<RequestResult> {
   try {
     const response = await fetch(url, {
@@ -80,7 +90,7 @@ export function useUser() {
     },
   });
 
-  const registerMutation = useMutation<RequestResult, Error, { username: string; password: string; fullName: string; }>({
+  const registerMutation = useMutation<RequestResult, Error, RegisterData>({
     mutationFn: (userData) => handleRequest('/api/register', 'POST', userData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] });

@@ -34,11 +34,10 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
   const [isRegister, setIsRegister] = useState(defaultIsRegister);
   const { register: registerUser, login } = useUser();
   const { toast } = useToast();
-  const { register, handleSubmit, reset, watch } = useForm<FormData>();
+  const { register, handleSubmit, reset, watch, setValue } = useForm<FormData>();
   const [, setLocation] = useLocation();
   const role = watch("role");
 
-  // Update isRegister state when prop changes
   useEffect(() => {
     setIsRegister(defaultIsRegister);
   }, [defaultIsRegister]);
@@ -46,17 +45,33 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
   const onSubmit = async (data: FormData) => {
     try {
       if (isRegister) {
+        if (!data.role) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Please select a role",
+          });
+          return;
+        }
+
         const result = await registerUser(data);
         if (!result.ok) {
           throw new Error(result.message);
         }
-        setLocation('/'); // Redirect to main page after successful registration
+        toast({
+          title: "Success",
+          description: "Registration successful! You can now log in.",
+        });
+        setLocation('/');
       } else {
-        const result = await login(data);
+        const result = await login({
+          username: data.username,
+          password: data.password,
+        });
         if (!result.ok) {
           throw new Error(result.message);
         }
-        setLocation('/'); // Redirect to main page after successful login
+        setLocation('/');
       }
     } catch (error: any) {
       toast({
@@ -117,12 +132,7 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="role">Role</Label>
-                    <Select onValueChange={(value) => {
-                      const event = {
-                        target: { value, name: "role" }
-                      };
-                      register("role").onChange(event);
-                    }}>
+                    <Select onValueChange={(value) => setValue("role", value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select your role" />
                       </SelectTrigger>
@@ -141,17 +151,12 @@ export default function AuthPage({ isRegister: defaultIsRegister = false }: Auth
                         <Input
                           id="organizationName"
                           type="text"
-                          {...register("organizationName", { required: true })}
+                          {...register("organizationName", { required: showOrganizationFields })}
                         />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="organizationType">Organization Type</Label>
-                        <Select onValueChange={(value) => {
-                          const event = {
-                            target: { value, name: "organizationType" }
-                          };
-                          register("organizationType").onChange(event);
-                        }}>
+                        <Select onValueChange={(value) => setValue("organizationType", value)}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select organization type" />
                           </SelectTrigger>
