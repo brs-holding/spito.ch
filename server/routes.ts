@@ -1632,6 +1632,7 @@ export function registerRoutes(app: Express): Server {
       const entries = await db
         .select({
           id: journalEntries.id,
+          title: journalEntries.title,
           content: journalEntries.content,
           documentUrl: journalEntries.documentUrl,
           createdAt: journalEntries.createdAt,
@@ -1659,12 +1660,13 @@ export function registerRoutes(app: Express): Server {
 
     try {
       const patientId = parseInt(req.params.id);
-      const { content, documentUrl } = req.body;
+      const { title, content, documentUrl } = req.body;
 
       const [newEntry] = await db
         .insert(journalEntries)
         .values({
           patientId,
+          title,
           content,
           documentUrl,
           createdBy: req.user!.id,
@@ -1675,6 +1677,7 @@ export function registerRoutes(app: Express): Server {
       const [entryWithUser] = await db
         .select({
           id: journalEntries.id,
+          title: journalEntries.title,
           content: journalEntries.content,
           documentUrl: journalEntries.documentUrl,
           createdAt: journalEntries.createdAt,

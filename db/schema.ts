@@ -763,6 +763,7 @@ export type CalendarEventAttendee = typeof calendarEventAttendees.$inferSelect;
 export const journalEntries = pgTable("journal_entries", {
   id: serial("id").primaryKey(),
   patientId: integer("patient_id").references(() => patients.id).notNull(),
+  title: text("title"), 
   content: text("content").notNull(),
   documentUrl: text("document_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -779,7 +780,6 @@ export const journalEntryRelations = relations(journalEntries, ({ one }) => ({
     references: [users.id],
   }),
 }));
-
 
 export const insertJournalEntrySchema = createInsertSchema(journalEntries);
 export const selectJournalEntrySchema = createSelectSchema(journalEntries);

@@ -3,12 +3,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingTransition } from "@/components/ui/LoadingTransition";
 import { format } from "date-fns";
+import { Label } from "@/components/ui/label";
+import { Upload } from "lucide-react";
 
 interface JournalEntry {
   id: number;
+  title: string;
   content: string;
   documentUrl?: string;
   createdAt: string;
@@ -20,7 +24,12 @@ interface JournalSectionProps {
 }
 
 export default function JournalSection({ patientId }: JournalSectionProps) {
-  const [newEntry, setNewEntry] = useState("");
+  const [newEntry, setNewEntry] = useState({
+    title: "",
+    content: "",
+    documentUrl: "",
+  });
+  const [file, setFile] = useState<File | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -29,11 +38,32 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
   });
 
   const createEntryMutation = useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async (data: typeof newEntry) => {
+      // First, if there's a file, upload it
+      let documentUrl = data.documentUrl;
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadResponse = await fetch(`/api/patients/${patientId}/documents`, {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(await uploadResponse.text());
+        }
+
+        const uploadResult = await uploadResponse.json();
+        documentUrl = uploadResult.fileUrl;
+      }
+
+      // Then create the journal entry
       const response = await fetch(`/api/patients/${patientId}/journal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ ...data, documentUrl }),
         credentials: "include",
       });
 
@@ -45,7 +75,8 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/patients/${patientId}/journal`] });
-      setNewEntry("");
+      setNewEntry({ title: "", content: "", documentUrl: "" });
+      setFile(null);
       toast({
         title: "Success",
         description: "Journal entry added successfully",
@@ -62,8 +93,14 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEntry.trim()) return;
+    if (!newEntry.title.trim() || !newEntry.content.trim()) return;
     createEntryMutation.mutate(newEntry);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
   };
 
   return (
@@ -71,15 +108,45 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Textarea
-              placeholder="Add a new journal entry..."
-              value={newEntry}
-              onChange={(e) => setNewEntry(e.target.value)}
-              className="min-h-[100px]"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                placeholder="Entry title..."
+                value={newEntry.title}
+                onChange={(e) => setNewEntry({ ...newEntry, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="content">Content</Label>
+              <Textarea
+                id="content"
+                placeholder="Add a new journal entry..."
+                value={newEntry.content}
+                onChange={(e) => setNewEntry({ ...newEntry, content: e.target.value })}
+                className="min-h-[100px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="document">Attach Document (Optional)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="document"
+                  type="file"
+                  onChange={handleFileChange}
+                  className="flex-1"
+                />
+                {file && (
+                  <div className="text-sm text-muted-foreground">
+                    Selected: {file.name}
+                  </div>
+                )}
+              </div>
+            </div>
             <Button
               type="submit"
-              disabled={createEntryMutation.isPending || !newEntry.trim()}
+              disabled={createEntryMutation.isPending || !newEntry.title.trim() || !newEntry.content.trim()}
+              className="w-full"
             >
               Add Entry
             </Button>
@@ -97,12 +164,28 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
                   key={entry.id}
                   className="border-b pb-4 last:border-b-0 last:pb-0"
                 >
-                  <p className="whitespace-pre-wrap">{entry.content}</p>
-                  <div className="mt-2 flex justify-between text-sm text-muted-foreground">
-                    <span>{entry.createdBy}</span>
-                    <span>
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-medium text-lg">{entry.title}</h4>
+                    <div className="text-sm text-muted-foreground">
                       {format(new Date(entry.createdAt), "MMM d, yyyy h:mm a")}
-                    </span>
+                    </div>
+                  </div>
+                  <p className="whitespace-pre-wrap mb-2">{entry.content}</p>
+                  {entry.documentUrl && (
+                    <div className="flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      <a
+                        href={entry.documentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-500 hover:underline"
+                      >
+                        View attached document
+                      </a>
+                    </div>
+                  )}
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    Created by: {entry.createdBy}
                   </div>
                 </div>
               ))}
