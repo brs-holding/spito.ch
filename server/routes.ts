@@ -1,8 +1,9 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { crypto } from "./utils/crypto";
+import path from "path";
+import { sql } from "drizzle-orm";
 import {
   users,
   insertUserSchema,
@@ -30,21 +31,28 @@ import {
   calendarEventAttendees,
   insertCalendarEventSchema,
 } from "@db/schema";
-import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import express from 'express';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 export function registerRoutes(app: Express): Server {
+  // Set up authentication first
   setupAuth(app);
 
-  // Increase payload size limit for base64 images
+  // Middleware for parsing JSON and URL-encoded bodies
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+  // Basic health check endpoint
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  // Get current user endpoint
+  app.get("/api/user", (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+    res.json(req.user);
+  });
 
   // Employee Management Routes for SPITEX Organizations
   app.get("/api/organization/employees", async (req, res) => {
@@ -794,8 +802,8 @@ export function registerRoutes(app: Express): Server {
   });
 
   //// Progress
-  app.get("/api/progress/:carePlanId", async(req, res) => {
-        if (!req.isAuthenticated) {
+  app.get("/api/progress/:carePlanId", async (req, res) => {
+    if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
     const carePlanProgress = await db
@@ -855,7 +863,7 @@ export function registerRoutes(app: Express): Server {
     res.json({ schedules, medications: medicationDetails });
   });
 
-  app.post("/api/patient/medication-adherence", async (reqres) => {
+  app.post("/api/patient/medication-adherence", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1007,29 +1015,26 @@ export function registerRoutes(app: Express): Server {
 
     res.json(updatedSession);
   });
-
   // Analytics Routes
   app.get("/api/analytics/tasks", async (req, res) => {
-    if (!req.isAuthenticated() || !["spitex_org", "super_admin"].includes(req.user.role)) {
+    if (!req.isAuthenticated() || !["spitex_org", "super_admin"].includes(req.user!.role)) {
       return res.status(403).send("Not authorized");
     }
 
     try {
-      // Get task completion metrics
-      const taskStats = await db
-        .select({
-          status: tasks.status,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(tasks)
-        .groupBy(tasks.status);
+      const taskStats = await db.execute(sql`
+        SELECT 
+          status,
+          COUNT(*) as count,
+          DATE_TRUNC('day', created_at) as date
+        FROM tasks
+        WHERE organization_id = ${req.user!.organizationId}
+        GROUP BY status, DATE_TRUNC('day', created_at)
+        ORDER BY date DESC
+        LIMIT 30
+      `);
 
-      const completionRate = taskStats.map(stat => ({
-        name: stat.status,
-        value: stat.count,
-      }));
-
-      res.json({ completionRate });
+      res.json(taskStats.rows);
     } catch (error: any) {
       console.error("Error fetching task analytics:", error);
       res.status(500).json({
