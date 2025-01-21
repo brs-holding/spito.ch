@@ -15,9 +15,7 @@ const pool = new Pool({
   },
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  retryDelay: 1000, // Time between retries
-  maxRetries: 3 // Maximum number of retries
+  connectionTimeoutMillis: 2000
 });
 
 // Add error handler for the pool

@@ -7,8 +7,28 @@ import { users, organizations, type User } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { crypto } from "./utils/crypto";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+
+const crypto = {
+  hash: async (password: string) => {
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${buf.toString("hex")}.${salt}`;
+  },
+  compare: async (suppliedPassword: string, storedPassword: string) => {
+    const [hashedPassword, salt] = storedPassword.split(".");
+    const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
+    const suppliedPasswordBuf = (await scryptAsync(
+      suppliedPassword,
+      salt,
+      64
+    )) as Buffer;
+    return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
+  },
+};
 
 // Define login schema separately from user schema
 const loginSchema = z.object({
@@ -40,7 +60,7 @@ declare global {
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID || "porygon-supremacy",
+    secret: process.env.REPL_ID || "healthcare-platform-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {},
@@ -182,7 +202,7 @@ export function setupAuth(app: Express) {
         organizationId = newOrg.id;
       }
 
-      // Hash the password
+      // Hash the password before storing
       const hashedPassword = await crypto.hash(password);
 
       // Create the new user
