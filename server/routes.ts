@@ -42,7 +42,7 @@ const __dirname = dirname(__filename);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
+  destination: (req, file, cb) => {
     // Ensure uploads directory exists
     const uploadsDir = path.join(__dirname, "..", "uploads");
     if (!fs.existsSync(uploadsDir)) {
@@ -50,13 +50,34 @@ const storage = multer.diskStorage({
     }
     cb(null, uploadsDir);
   },
-  filename: (_req, file, cb) => {
+  filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    const fileExt = path.extname(file.originalname);
+    cb(null, `${file.fieldname}-${uniqueSuffix}${fileExt}`);
   }
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  fileFilter: (req, file, cb) => {
+    // Accept common document types
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/png'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, JPG, and PNG files are allowed.'));
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 // Ensure uploads directory exists (This line is now redundant and can be removed)
 //const uploadsDir = path.join(__dirname, "..", "uploads");
@@ -693,6 +714,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Document upload endpoint
   app.post("/api/patients/:id/documents", upload.single("document"), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -703,12 +725,34 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).send("No file uploaded");
       }
 
+      const patientId = parseInt(req.params.id);
+
+      // Verify patient exists and belongs to organization
+      const [patient] = await db
+        .select()
+        .from(patients)
+        .where(
+          and(
+            eq(patients.id, patientId),
+            eq(patients.organizationId, req.user.organizationId!)
+          )
+        )
+        .limit(1);
+
+      if (!patient) {
+        // Remove uploaded file if patient verification fails
+        if (req.file.path) {
+          fs.unlinkSync(req.file.path);
+        }
+        return res.status(404).send("Patient not found");
+      }
+
       // Create document record with the file path
       const [newDocument] = await db
         .insert(patientDocuments)
         .values({
-          patientId: parseInt(req.params.id),
-          uploadedBy: req.user!.id,
+          patientId,
+          uploadedBy: req.user.id,
           title: req.body.title,
           type: req.body.type,
           fileUrl: `/uploads/${req.file.filename}`,
@@ -718,6 +762,11 @@ export function registerRoutes(app: Express): Server {
 
       res.json(newDocument);
     } catch (error: any) {
+      // Clean up uploaded file in case of database error
+      if (req.file?.path) {
+        fs.unlinkSync(req.file.path);
+      }
+
       console.error("Error uploading document:", error);
       res.status(500).json({
         message: "Failed to upload document",
@@ -960,7 +1009,7 @@ export function registerRoutes(app: Express): Server {
       .limit(1);
 
     if (!patient) {
-      return res.status(404).send("Patient profile not found");
+      return res.status(404).send(""Patient profile not found");
     }
 
     const metrics = await db
