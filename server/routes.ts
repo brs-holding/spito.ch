@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import path from "path";
@@ -40,6 +40,16 @@ import { eq, and, gte, lte, desc } from "drizzle-orm";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+interface AuthenticatedRequest extends Request {
+  user: {
+    id: number;
+    organizationId?: number;
+    role: string;
+    fullName: string;
+  };
+  isAuthenticated(): boolean;
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -57,7 +67,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     // Accept common document types
@@ -79,12 +89,6 @@ const upload = multer({
   }
 });
 
-// Ensure uploads directory exists (This line is now redundant and can be removed)
-//const uploadsDir = path.join(__dirname, "..", "uploads");
-//if (!fs.existsSync(uploadsDir)) {
-//  fs.mkdirSync(uploadsDir, { recursive: true });
-//}
-
 export function registerRoutes(app: Express): Server {
   // Set up authentication first
   setupAuth(app);
@@ -99,7 +103,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get current user endpoint
-  app.get("/api/user", (req, res) => {
+  app.get("/api/user", (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -107,7 +111,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Employee Management Routes for SPITEX Organizations
-  app.get("/api/organization/employees", async (req, res) => {
+  app.get("/api/organization/employees", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated() || req.user.role !== "spitex_org") {
       return res.status(403).send("Not authorized");
     }
@@ -134,7 +138,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/organization/employees", async (req, res) => {
+  app.post("/api/organization/employees", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated() || req.user.role !== "spitex_org") {
       return res.status(403).send("Not authorized");
     }
@@ -154,6 +158,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Hash the password before storing
+      const crypto = require('crypto'); //Import crypto here.
       const hashedPassword = await crypto.hash(result.data.password);
 
       const [newEmployee] = await db
@@ -181,7 +186,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.put("/api/organization/employees/:id", async (req, res) => {
+  app.put("/api/organization/employees/:id", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated() || req.user.role !== "spitex_org") {
       return res.status(403).send("Not authorized");
     }
@@ -222,7 +227,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Service Logs Routes
-  app.get("/api/service-logs", async (req, res) => {
+  app.get("/api/service-logs", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -251,7 +256,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/service-logs", async (req, res) => {
+  app.post("/api/service-logs", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -280,7 +285,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Provider Schedule Routes
-  app.get("/api/provider-schedules", async (req, res) => {
+  app.get("/api/provider-schedules", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -307,7 +312,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
   // Appointment Routes
-  app.get("/api/appointments", async (req, res) => {
+  app.get("/api/appointments", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -362,7 +367,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/appointments", async (req, res) => {
+  app.post("/api/appointments", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -431,7 +436,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.patch("/api/appointments/:id/status", async (req, res) => {
+  app.patch("/api/appointments/:id/status", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -464,7 +469,7 @@ export function registerRoutes(app: Express): Server {
 
 
   // Patient Profile Routes (UPDATED)
-  app.get("/api/patients", async (req, res) => {
+  app.get("/api/patients", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -516,7 +521,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Create patient endpoint (UPDATED)
-  app.post("/api/patients", async (req, res) => {
+  app.post("/api/patients", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -554,7 +559,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get single patient endpoint (UPDATED)
-  app.get("/api/patients/:id", async (req, res) => {
+  app.get("/api/patients/:id", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -586,7 +591,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Update patient endpoint (NEW)
-  app.put("/api/patients/:id", async (req, res) => {
+  app.put("/api/patients/:id", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -630,7 +635,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Delete patient endpoint (NEW)
-  app.delete("/api/patients/:id", async (req, res) => {
+  app.delete("/api/patients/:id", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -668,7 +673,7 @@ export function registerRoutes(app: Express): Server {
 
 
   // Insurance Details Routes
-  app.get("/api/patients/:id/insurance", async (req, res) => {
+  app.get("/api/patients/:id/insurance", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -679,7 +684,7 @@ export function registerRoutes(app: Express): Server {
     res.json(patientInsurance);
   });
 
-  app.post("/api/patients/:id/insurance", async (req, res) => {
+  app.post("/api/patients/:id/insurance", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -694,7 +699,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Document Routes
-  app.get("/api/patients/:id/documents", async (req, res) => {
+  app.get("/api/patients/:id/documents", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -715,7 +720,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Document upload endpoint
-  app.post("/api/patients/:id/documents", upload.single("document"), async (req, res) => {
+  app.post("/api/patients/:id/documents", upload.single("document"), async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -775,7 +780,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/documents/:id/preview", async (req, res) => {
+  app.get("/api/documents/:id/preview", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -807,7 +812,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/documents/:id/download", async (req, res) => {
+  app.get("/api/documents/:id/download", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -840,7 +845,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Visit Logs Routes
-  app.get("/api/patients/:id/visits", async (req, res) => {
+  app.get("/api/patients/:id/visits", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -851,7 +856,7 @@ export function registerRoutes(app: Express): Server {
     res.json(visits);
   });
 
-  app.post("/api/patients/:id/visits", async (req, res) => {
+  app.post("/api/patients/:id/visits", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -867,7 +872,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Care Plans
-  app.get("/api/care-plans/:patientId", async (req, res) => {
+  app.get("/api/care-plans/:patientId", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -878,7 +883,7 @@ export function registerRoutes(app: Express): Server {
     res.json(patientCarePlans);
   });
 
-  app.post("/api/care-plans", async (req, res) => {
+  app.post("/api/care-plans", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -887,7 +892,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   //// Progress
-  app.get("/api/progress/:carePlanId", async (req, res) => {
+  app.get("/api/progress/:carePlanId", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -898,7 +903,7 @@ export function registerRoutes(app: Express): Server {
     res.json(carePlanProgress);
   });
 
-  app.post("/api/progress", async (req, res) => {
+  app.post("/api/progress", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -907,7 +912,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Medication Routes
-  app.get("/api/medications", async (req, res) => {
+  app.get("/api/medications", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -915,7 +920,7 @@ export function registerRoutes(app: Express): Server {
     res.json(allMedications);
   });
 
-  app.get("/api/patient/medications", async (req, res) => {
+  app.get("/api/patient/medications", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -948,7 +953,7 @@ export function registerRoutes(app: Express): Server {
     res.json({ schedules, medications: medicationDetails });
   });
 
-  app.post("/api/patient/medication-adherence", async (req, res) => {
+  app.post("/api/patient/medication-adherence", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -970,7 +975,7 @@ export function registerRoutes(app: Express): Server {
     res.json(newAdherence[0]);
   });
 
-  app.get("/api/patient/medication-adherence/:scheduleId", async (req, res) => {
+  app.get("/api/patient/medication-adherence/:scheduleId", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -993,7 +998,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Patient Portal Routes
-  app.get("/api/patient/health-metrics", async (req, res) => {
+  app.get("/api/patient/health-metrics", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1009,7 +1014,7 @@ export function registerRoutes(app: Express): Server {
       .limit(1);
 
     if (!patient) {
-      return res.status(404).send(""Patient profile not found");
+      return res.status(404).send("Patient profile not found");
     }
 
     const metrics = await db
@@ -1020,7 +1025,7 @@ export function registerRoutes(app: Express): Server {
     res.json(metrics);
   });
 
-  app.post("/api/patient/health-metrics", async (req, res) => {
+  app.post("/api/patient/health-metrics", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1048,7 +1053,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Video Session Routes
-  app.post("/api/appointments/:id/session", async (req, res) => {
+  app.post("/api/appointments/:id/session", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Notauthenticated");
     }
@@ -1080,7 +1085,7 @@ export function registerRoutes(app: Express): Server {
     res.json(videoSession);
   });
 
-  app.patch("/api/video-sessions/:id/status", async (req, res) => {
+  app.patch("/api/video-sessions/:id/status", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1101,7 +1106,7 @@ export function registerRoutes(app: Express): Server {
     res.json(updatedSession);
   });
   // Analytics Routes
-  app.get("/api/analytics/tasks", async (req, res) => {
+  app.get("/api/analytics/tasks", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated() || !["spitex_org", "super_admin"].includes(req.user!.role)) {
       return res.status(403).send("Not authorized");
     }
@@ -1129,7 +1134,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/analytics/patients", async (req, res) => {
+  app.get("/api/analytics/patients", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated() || !["spitex_org", "super_admin"].includes(req.user.role)) {
       return res.status(403).send("Not authorized");
     }
@@ -1159,7 +1164,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/analytics/employees", async (req, res) => {
+  app.get("/api/analytics/employees", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated() || !["spitex_org", "super_admin"].includes(req.user.role)) {
       return res.status(403).send("Not authorized");
     }
@@ -1195,7 +1200,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Invoice Routes
-  app.get("/api/invoices", async (req, res) => {
+  app.get("/api/invoices", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1251,7 +1256,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/invoices", async (req, res) => {
+  app.post("/api/invoices", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1317,7 +1322,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/invoices/:id/pdf", async (req, res) => {
+  app.get("/api/invoices/:id/pdf", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1368,7 +1373,7 @@ export function registerRoutes(app: Express): Server {
 
   // Add these routes after the existing routes
   // Calendar Routes
-  app.get("/api/calendar", async (req, res) => {
+  app.get("/api/calendar", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1423,7 +1428,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/calendar", async (req, res) => {
+  app.post("/api/calendar", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1504,7 +1509,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.patch("/api/calendar/:id", async (req, res) => {
+  app.patch("/api/calendar/:id", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1547,7 +1552,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.delete("/api/calendar/:id", async (req, res) => {
+  app.delete("/api/calendar/:id", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1593,7 +1598,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Calendar Attendee Routes
-  app.post("/api/calendar/:id/attendees", async (req, res) => {
+  app.post("/api/calendar/:id/attendees", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1654,7 +1659,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.patch("/api/calendar/:eventId/attendees/:userId/status", async (req, res) => {
+  app.patch("/api/calendar/:eventId/attendees/:userId/status", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1707,7 +1712,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Add journal entry endpoints after the document endpoints
-  app.get("/api/patients/:id/journal", async (req, res) => {
+  app.get("/api/patients/:id/journal", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1738,7 +1743,7 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/patients/:id/journal", upload.single('journalDocument'), async (req, res) => {
+  app.post("/api/patients/:id/journal", upload.single('journalDocument'), async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
