@@ -2,8 +2,28 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { users, organizations } from "@db/schema";
-import { eq } from "drizzle-orm";
+import {
+  users,
+  patients,
+  organizations,
+  appointments,
+  serviceLogs,
+  tasks,
+  invoices,
+  calendarEvents,
+  calendarEventAttendees,
+  visitLogs,
+  carePlans,
+  progress,
+  medications,
+  medicationSchedules,
+  medicationAdherence,
+  healthMetrics,
+  insuranceDetails,
+  patientDocuments,
+  providerSchedules,
+} from "@db/schema";
+import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -761,7 +781,7 @@ export function registerRoutes(app: Express): Server {
 
   //// Progress
   app.get("/api/progress/:carePlanId", async(req, res) => {
-        if (!req.isAuthenticated) {
+        if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
     const carePlanProgress = await db
@@ -821,7 +841,7 @@ export function registerRoutes(app: Express): Server {
     res.json({ schedules, medications: medicationDetails });
   });
 
-  app.post("/api/patient/medication-adherence", async (reqres) => {
+  app.post("/api/patient/medication-adherence", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
@@ -1147,12 +1167,11 @@ export function registerRoutes(app: Express): Server {
         createdById: req.user.id,
         createdAt: new Date(),
         updatedAt: new Date(),
-        // Ensure all required fields are present and properly formatted
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
         dueDate: new Date(req.body.dueDate),
         totalAmount: req.body.totalAmount.toString(),
-        selbstbehaltAmount: req.body.selbstbehaltAmount.toString(),
+        selbstbehaltAmount: req.body.selbstbehaltAmount?.toString(),
         status: req.body.status || "draft",
         recipientType: req.body.recipientType || "insurance",
         metadata: {
@@ -1164,8 +1183,38 @@ export function registerRoutes(app: Express): Server {
 
       const [newInvoice] = await db
         .insert(invoices)
-        }
-      );
+        .values(invoiceData)
+        .returning();
+
+      res.json(newInvoice);
+    } catch (error: any) {
+      console.error("Error creating invoice:", error);
+      res.status(500).json({
+        message: "Failed to create invoice",
+        error: error.message,
+      });
+    }
+  });
+
+  // Calendar Routes
+  app.post("/api/calendar", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const eventData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        createdById: req.user.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const [newEvent] = await db
+        .insert(calendarEvents)
+        .values(eventData)
+        .returning();
 
       // Add attendees if provided
       if (req.body.attendeeIds && Array.isArray(req.body.attendeeIds)) {
