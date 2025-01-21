@@ -1,4 +1,4 @@
-import type { Express, Request } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import path from "path";
@@ -33,8 +33,9 @@ import {
   calendarEvents,
   calendarEventAttendees,
   insertCalendarEventSchema,
+  insertUserSchema,
 } from "@db/schema";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 
 // Get current directory in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -998,7 +999,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Patient Portal Routes
-  app.get("/api/patient/health-metrics", async (req: AuthenticatedRequest, res) => {
+  app.get("/apipatient/health-metrics", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
