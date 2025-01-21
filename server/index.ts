@@ -1,7 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { setupAuth } from "./auth";
 
 const app = express();
 app.use(express.json());
@@ -9,16 +8,16 @@ app.use(express.urlencoded({ extended: false }));
 
 // Add security headers
 app.use((req, res, next) => {
-  // Content Security Policy with more permissive rules for development
+  // Content Security Policy
   res.setHeader(
     "Content-Security-Policy",
     [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
+      "img-src 'self' data: blob:",
       "font-src 'self' data:",
-      "connect-src 'self' *",
+      "connect-src 'self' ws: wss:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -30,6 +29,10 @@ app.use((req, res, next) => {
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("X-XSS-Protection", "1; mode=block");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Permissions-Policy",
+    "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+  );
 
   next();
 });
@@ -66,8 +69,6 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Set up authentication
-  setupAuth(app);
   const server = registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -85,6 +86,17 @@ app.use((req, res, next) => {
   }
 
   const PORT = 5000;
+  // Add error handling for port conflicts
+  server.on('error', (error: any) => {
+    if (error.code === 'EADDRINUSE') {
+      log(`Port ${PORT} is in use, trying next available port...`);
+      setTimeout(() => {
+        server.close();
+        server.listen(PORT, "0.0.0.0");
+      }, 1000);
+    }
+  });
+
   server.listen(PORT, "0.0.0.0", () => {
     log(`serving on port ${PORT}`);
   });
