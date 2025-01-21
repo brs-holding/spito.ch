@@ -285,25 +285,73 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Provider Schedule Routes
+  // Provider Schedule Routes (UPDATED)
   app.get("/api/provider-schedules", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
     try {
-      const schedules = await db
-        .select()
-        .from(providerSchedules)
-        .innerJoin(users, eq(providerSchedules.providerId, users.id))
-        .where(
-          and(
-            eq(users.role, "doctor"),
-            eq(providerSchedules.isAvailable, true)
-          )
-        );
+      const { date } = req.query;
+      let startDate, endDate;
 
-      res.json(schedules);
+      if (date) {
+        startDate = new Date(date as string);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+      } else {
+        // Default to today if no date provided
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      // Get all providers with their schedules
+      const providers = await db
+        .select()
+        .from(users)
+        .where(eq(users.role, "doctor"));
+
+      // Generate available time slots
+      const timeSlots = [];
+      const slotDuration = 30; // 30 minutes per slot
+
+      for (const provider of providers) {
+        let currentTime = new Date(startDate);
+
+        // Generate slots from 9 AM to 5 PM
+        while (currentTime <= endDate) {
+          if (currentTime.getHours() >= 9 && currentTime.getHours() < 17) {
+            // Check if slot is already booked
+            const existingAppointment = await db
+              .select()
+              .from(appointments)
+              .where(
+                and(
+                  eq(appointments.providerId, provider.id),
+                  gte(appointments.scheduledFor, currentTime),
+                  lte(sql`date_add(${appointments.scheduledFor}, interval ${appointments.duration} minute)`, currentTime)
+                )
+              )
+              .limit(1);
+
+            if (existingAppointment.length === 0) {
+              timeSlots.push({
+                providerId: provider.id,
+                providerName: provider.fullName,
+                startTime: new Date(currentTime),
+                endTime: new Date(currentTime.getTime() + slotDuration * 60000),
+                available: true
+              });
+            }
+          }
+          currentTime = new Date(currentTime.getTime() + slotDuration * 60000);
+        }
+      }
+
+      res.json(timeSlots);
     } catch (error: any) {
       console.error("Error fetching provider schedules:", error);
       res.status(500).json({
@@ -312,78 +360,34 @@ export function registerRoutes(app: Express): Server {
       });
     }
   });
-  // Appointment Routes
-  app.get("/api/appointments", async (req: AuthenticatedRequest, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const { date } = req.query;
-      let appointmentsList;
-
-      if (date) {
-        const startDate = new Date(date as string);
-        const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 1);
-
-        appointmentsList = await db
-          .select()
-          .from(appointments)
-          .where(
-            and(
-              gte(appointments.scheduledFor, startDate),
-              lte(appointments.scheduledFor, endDate)
-            )
-          );
-      } else if (req.user.role === "patient") {
-        const [patient] = await db
-          .select()
-          .from(patients)
-          .where(eq(patients.userId, req.user.id))
-          .limit(1);
-
-        if (!patient) {
-          return res.status(404).send("Patient profile not found");
-        }
-
-        appointmentsList = await db
-          .select()
-          .from(appointments)
-          .where(eq(appointments.patientId, patient.id));
-      } else {
-        appointmentsList = await db
-          .select()
-          .from(appointments)
-          .where(eq(appointments.providerId, req.user.id));
-      }
-
-      res.json(appointmentsList);
-    } catch (error: any) {
-      console.error("Error fetching appointments:", error);
-      res.status(500).json({
-        message: "Failed to fetch appointments",
-        error: error.message,
-      });
-    }
-  });
-
+  // Appointment Routes (UPDATED)
   app.post("/api/appointments", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
     try {
-      // Check for scheduling conflicts
-      const startTime = new Date(req.body.scheduledFor);
-      const endTime = new Date(startTime);
-      endTime.setMinutes(endTime.getMinutes() + req.body.duration);
+      const { providerId, scheduledFor, duration = 30 } = req.body;
 
+      if (!providerId || !scheduledFor) {
+        return res.status(400).send("Provider ID and scheduled time are required");
+      }
+
+      const startTime = new Date(scheduledFor);
+      const endTime = new Date(startTime.getTime() + duration * 60000);
+
+      // Validate business hours (9 AM - 5 PM)
+      if (startTime.getHours() < 9 || startTime.getHours() >= 17) {
+        return res.status(400).send("Appointments are only available between 9 AM and 5 PM");
+      }
+
+      // Check for scheduling conflicts
       const existingAppointments = await db
         .select()
         .from(appointments)
         .where(
           and(
+            eq(appointments.providerId, providerId),
             gte(appointments.scheduledFor, startTime),
             lte(appointments.scheduledFor, endTime)
           )
@@ -391,17 +395,6 @@ export function registerRoutes(app: Express): Server {
 
       if (existingAppointments.length > 0) {
         return res.status(400).send("Time slot already booked");
-      }
-
-      // Get available provider
-      const [provider] = await db
-        .select()
-        .from(users)
-        .where(eq(users.role, "doctor"))
-        .limit(1);
-
-      if (!provider) {
-        return res.status(404).send("No providers available");
       }
 
       // Get patient profile
@@ -416,10 +409,13 @@ export function registerRoutes(app: Express): Server {
       }
 
       const appointmentData = {
-        ...req.body,
         patientId: patient.id,
-        providerId: provider.id,
+        providerId,
+        scheduledFor: startTime,
+        duration,
         status: "scheduled",
+        notes: req.body.notes || "",
+        type: req.body.type || "regular",
       };
 
       const [newAppointment] = await db
