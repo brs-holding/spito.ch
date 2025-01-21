@@ -1,9 +1,12 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import path from "path";
-import { sql } from "drizzle-orm";
+import fs from "fs";
 import { 
   users, 
   patients, 
@@ -32,6 +35,29 @@ import {
   insertCalendarEventSchema,
 } from "@db/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
+
+// Get current directory in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, path.join(__dirname, "..", "uploads"));
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({ storage });
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, "..", "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 export function registerRoutes(app: Express): Server {
   // Set up authentication first
@@ -653,28 +679,25 @@ export function registerRoutes(app: Express): Server {
     res.json(documents);
   });
 
-  app.post("/api/patients/:id/documents", async (req, res) => {
+  app.post("/api/patients/:id/documents", upload.single("file"), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
     try {
-      const { title, type, metadata } = req.body;
-
-      // Basic validation
-      if (!title || !type) {
-        return res.status(400).send("Title and type are required");
+      if (!req.file) {
+        return res.status(400).send("No file uploaded");
       }
 
-      // Create document record
+      // Create document record with the file path
       const documentData = {
         patientId: parseInt(req.params.id),
         uploadedBy: req.user!.id,
-        title,
-        type,
-        fileUrl: `document_${Date.now()}.pdf`, // For now using a placeholder URL
+        title: req.body.title || req.file.originalname,
+        type: req.body.type || "other",
+        fileUrl: `/uploads/${req.file.filename}`,
+        metadata: req.body.metadata || {},
         uploadedAt: new Date(),
-        metadata: metadata || {},
       };
 
       const [newDocument] = await db
@@ -1653,14 +1676,15 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.post("/api/patients/:id/journal", async (req, res) => {
+  app.post("/api/patients/:id/journal", upload.single('journalDocument'), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
     try {
       const patientId = parseInt(req.params.id);
-      const { title, content, documentUrl } = req.body;
+      const { title, content } = req.body;
+      const documentUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
       const [newEntry] = await db
         .insert(journalEntries)
@@ -1670,6 +1694,7 @@ export function registerRoutes(app: Express): Server {
           content,
           documentUrl,
           createdBy: req.user!.id,
+          createdAt: new Date(),
         })
         .returning();
 
@@ -1697,6 +1722,8 @@ export function registerRoutes(app: Express): Server {
       });
     }
   });
+
+  app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
   const httpServer = createServer(app);
   return httpServer;

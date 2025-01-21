@@ -27,7 +27,6 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
   const [newEntry, setNewEntry] = useState({
     title: "",
     content: "",
-    documentUrl: "",
   });
   const [file, setFile] = useState<File | null>(null);
   const { toast } = useToast();
@@ -38,32 +37,17 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
   });
 
   const createEntryMutation = useMutation({
-    mutationFn: async (data: typeof newEntry) => {
-      // First, if there's a file, upload it
-      let documentUrl = data.documentUrl;
-      if (file) {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const uploadResponse = await fetch(`/api/patients/${patientId}/documents`, {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error(await uploadResponse.text());
-        }
-
-        const uploadResult = await uploadResponse.json();
-        documentUrl = uploadResult.fileUrl;
+    mutationFn: async (data: typeof newEntry & { file?: File }) => {
+      const formData = new FormData();
+      formData.append("title", data.title);
+      formData.append("content", data.content);
+      if (data.file) {
+        formData.append("journalDocument", data.file);
       }
 
-      // Then create the journal entry
       const response = await fetch(`/api/patients/${patientId}/journal`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, documentUrl }),
+        body: formData,
         credentials: "include",
       });
 
@@ -75,7 +59,7 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/patients/${patientId}/journal`] });
-      setNewEntry({ title: "", content: "", documentUrl: "" });
+      setNewEntry({ title: "", content: "" });
       setFile(null);
       toast({
         title: "Success",
@@ -94,7 +78,7 @@ export default function JournalSection({ patientId }: JournalSectionProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEntry.title.trim() || !newEntry.content.trim()) return;
-    createEntryMutation.mutate(newEntry);
+    createEntryMutation.mutate({ ...newEntry, file: file || undefined });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
