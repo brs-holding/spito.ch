@@ -4,10 +4,10 @@ import { setupAuth } from "./auth";
 import { db } from "@db";
 import path from "path";
 import { sql } from "drizzle-orm";
-import {
-  users,
-  insertUserSchema,
-  patients,
+import { 
+  users, 
+  patients, 
+  journalEntries,
   appointments,
   providerSchedules,
   serviceLogs,
@@ -32,7 +32,6 @@ import {
   insertCalendarEventSchema,
 } from "@db/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
-import {journalEntries} from "@db/schema"; // Assuming journalEntries is part of the schema
 
 export function registerRoutes(app: Express): Server {
   // Set up authentication first
