@@ -7,12 +7,16 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useForm } from "react-hook-form";
 import { Loader2, Plus, Clock, Users } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/use-user";
-import type { CalendarEvent, InsertCalendarEvent } from "@db/schema";
+import type { CalendarEvent } from "@db/schema";
+
+const TIMEZONE = 'Europe/Zurich'; // Swiss timezone preset
 
 type EventFormData = {
   title: string;
@@ -21,6 +25,7 @@ type EventFormData = {
   endTime: string;
   attendeeIds: string[];
   patientId?: string;
+  timezone: string;
 };
 
 export default function SchedulePage() {
@@ -36,30 +41,45 @@ export default function SchedulePage() {
       startTime: "",
       endTime: "",
       attendeeIds: [],
+      timezone: TIMEZONE,
     },
   });
 
   const { data: events, isLoading: isLoadingEvents } = useQuery<CalendarEvent[]>({
     queryKey: ["/api/calendar"],
+    select: (data) => {
+      // Convert UTC times to Swiss timezone for display
+      return data.map(event => ({
+        ...event,
+        startTime: formatInTimeZone(new Date(event.startTime), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        endTime: formatInTimeZone(new Date(event.endTime), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+      }));
+    }
   });
 
-  const { data: organizationUsers, isLoading: isLoadingUsers } = useQuery({
+  const { data: organizationUsers = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ["/api/organization/employees"],
     enabled: user?.role === "spitex_org" || user?.role === "spitex_employee",
   });
 
-  const { data: patients, isLoading: isLoadingPatients } = useQuery({
+  const { data: patients = [], isLoading: isLoadingPatients } = useQuery({
     queryKey: ["/api/patients"],
     enabled: user?.role === "spitex_org" || user?.role === "spitex_employee",
   });
 
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
+      // Convert local times to UTC before sending to server
+      const startTime = toZonedTime(new Date(data.startTime), data.timezone);
+      const endTime = toZonedTime(new Date(data.endTime), data.timezone);
+
       const response = await fetch("/api/calendar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
           attendeeIds: data.attendeeIds.map(id => parseInt(id)),
           patientId: data.patientId ? parseInt(data.patientId) : undefined,
         }),
@@ -93,6 +113,17 @@ export default function SchedulePage() {
   const onSubmit = (data: EventFormData) => {
     createEventMutation.mutate(data);
   };
+
+  // Only allow access to authorized users
+  if (!user || (user.role !== "spitex_org" && user.role !== "spitex_employee")) {
+    return (
+      <div className="container mx-auto py-6">
+        <h1 className="text-2xl font-bold text-red-600">
+          Not authorized to access scheduling
+        </h1>
+      </div>
+    );
+  }
 
   if (isLoadingEvents || isLoadingUsers || isLoadingPatients) {
     return (
@@ -155,7 +186,7 @@ export default function SchedulePage() {
                     rules={{ required: "Start time is required" }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Start Time</FormLabel>
+                        <FormLabel>Start Time ({TIMEZONE})</FormLabel>
                         <FormControl>
                           <Input type="datetime-local" {...field} />
                         </FormControl>
@@ -170,7 +201,7 @@ export default function SchedulePage() {
                     rules={{ required: "End time is required" }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>End Time</FormLabel>
+                        <FormLabel>End Time ({TIMEZONE})</FormLabel>
                         <FormControl>
                           <Input type="datetime-local" {...field} />
                         </FormControl>
@@ -183,59 +214,56 @@ export default function SchedulePage() {
                 <FormField
                   control={form.control}
                   name="attendeeIds"
+                  rules={{ required: "At least one attendee is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Attendees</FormLabel>
-                      <FormControl>
-                        <Select
-                          {...field}
-                          multiple
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select attendees" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {organizationUsers?.map((user) => (
-                              <SelectItem key={user.id} value={user.id.toString()}>
-                                {user.fullName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
+                      <FormLabel>Team Members</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) => field.onChange(Array.isArray(value) ? value : [value])}
+                        multiple
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select team members" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {organizationUsers.map((user: any) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.fullName || user.username}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {patients && patients.length > 0 && (
+                {patients.length > 0 && (
                   <FormField
                     control={form.control}
                     name="patientId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Patient (Optional)</FormLabel>
-                        <FormControl>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select patient" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {patients.map((patient) => (
-                                <SelectItem
-                                  key={patient.id}
-                                  value={patient.id.toString()}
-                                >
-                                  {patient.firstName} {patient.lastName}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
+                        <FormLabel>Patient</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select patient" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {patients.map((patient: any) => (
+                              <SelectItem
+                                key={patient.id}
+                                value={patient.id.toString()}
+                              >
+                                {patient.firstName} {patient.lastName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -285,7 +313,6 @@ export default function SchedulePage() {
                           </p>
                         )}
                       </div>
-                      {/* Assuming Badge component exists */}
                       <Badge variant={event.status === "completed" ? "secondary" : "default"}>
                         {event.status}
                       </Badge>
@@ -294,8 +321,8 @@ export default function SchedulePage() {
                       <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         <span>
-                          {format(parseISO(event.startTime), "PPp")} -{" "}
-                          {format(parseISO(event.endTime), "p")}
+                          {format(new Date(event.startTime), "PPp")} -{" "}
+                          {format(new Date(event.endTime), "p")}
                         </span>
                       </div>
                       {event.attendees?.length > 0 && (

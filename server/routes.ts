@@ -26,6 +26,9 @@ import {
   notifications,
   invoices,
   insertInvoiceSchema,
+  calendarEvents,
+  calendarEventAttendees,
+  insertCalendarEventSchema,
 } from "@db/schema";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import path from 'path';
@@ -411,6 +414,10 @@ export function registerRoutes(app: Express): Server {
 
       // Filter patients based on user role and organization
       if (req.user.role === "spitex_org" || req.user.role === "spitex_employee") {
+        if (!req.user.organizationId) {
+          return res.status(403).send("No organization assigned");
+        }
+
         // Get organization's patients only
         query = db
           .select({
@@ -431,7 +438,7 @@ export function registerRoutes(app: Express): Server {
             updatedAt: patients.updatedAt,
           })
           .from(patients)
-          .where(eq(patients.organizationId, req.user.organizationId!));
+          .where(eq(patients.organizationId, req.user.organizationId));
       } else {
         // Other roles are not authorized to view patient data
         return res.status(403).send("Not authorized to view patient data");
@@ -456,6 +463,10 @@ export function registerRoutes(app: Express): Server {
 
     if (req.user.role !== "spitex_org" && req.user.role !== "spitex_employee") {
       return res.status(403).send("Not authorized to create patients");
+    }
+
+    if (!req.user.organizationId) {
+      return res.status(403).send("No organization assigned");
     }
 
     try {
@@ -1011,7 +1022,7 @@ export function registerRoutes(app: Express): Server {
           count: sql<number>`count(*)::int`,
         })
         .from(tasks)
-                .groupBy(tasks.status);
+        .groupBy(tasks.status);
 
       const completionRate = taskStats.map(stat => ({
         name: stat.status,
