@@ -32,6 +32,7 @@ import {
   insertCalendarEventSchema,
 } from "@db/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
+import {journalEntries} from "@db/schema"; // Assuming journalEntries is part of the schema
 
 export function registerRoutes(app: Express): Server {
   // Set up authentication first
@@ -1616,6 +1617,80 @@ export function registerRoutes(app: Express): Server {
       console.error("Error updating calendar event attendee status:", error);
       res.status(500).json({
         message: "Failed to update calendar event attendee status",
+        error: error.message,
+      });
+    }
+  });
+
+  // Add journal entry endpoints after the document endpoints
+  app.get("/api/patients/:id/journal", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const patientId = parseInt(req.params.id);
+      const entries = await db
+        .select({
+          id: journalEntries.id,
+          content: journalEntries.content,
+          documentUrl: journalEntries.documentUrl,
+          createdAt: journalEntries.createdAt,
+          createdBy: users.fullName,
+        })
+        .from(journalEntries)
+        .innerJoin(users, eq(journalEntries.createdBy, users.id))
+        .where(eq(journalEntries.patientId, patientId))
+        .orderBy(desc(journalEntries.createdAt));
+
+      res.json(entries);
+    } catch (error: any) {
+      console.error("Error fetching journal entries:", error);
+      res.status(500).json({
+        message: "Failed to fetch journal entries",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/patients/:id/journal", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const patientId = parseInt(req.params.id);
+      const { content, documentUrl } = req.body;
+
+      const [newEntry] = await db
+        .insert(journalEntries)
+        .values({
+          patientId,
+          content,
+          documentUrl,
+          createdBy: req.user!.id,
+        })
+        .returning();
+
+      // Get the created entry with user details
+      const [entryWithUser] = await db
+        .select({
+          id: journalEntries.id,
+          content: journalEntries.content,
+          documentUrl: journalEntries.documentUrl,
+          createdAt: journalEntries.createdAt,
+          createdBy: users.fullName,
+        })
+        .from(journalEntries)
+        .innerJoin(users, eq(journalEntries.createdBy, users.id))
+        .where(eq(journalEntries.id, newEntry.id))
+        .limit(1);
+
+      res.json(entryWithUser);
+    } catch (error: any) {
+      console.error("Error creating journal entry:", error);
+      res.status(500).json({
+        message: "Failed to create journal entry",
         error: error.message,
       });
     }

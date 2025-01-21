@@ -42,6 +42,8 @@ import {
 import { LoadingTransition } from "@/components/ui/LoadingTransition";
 import DocumentUpload from "./DocumentUpload";
 import DocumentList from "./DocumentList";
+import JournalSection from "./JournalSection";
+import { Book } from "lucide-react";
 
 interface PatientDetailsDialogProps {
   patient: Patient | null;
@@ -69,11 +71,15 @@ export default function PatientDetailsDialog({
     defaultValues: {
       firstName: patient?.firstName || "",
       lastName: patient?.lastName || "",
-      dateOfBirth: patient?.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().split('T')[0] : "",
+      dateOfBirth: patient?.dateOfBirth
+        ? new Date(patient.dateOfBirth).toISOString().split("T")[0]
+        : "",
       email: patient?.email || "",
       phone: patient?.phone || "",
       address: patient?.address ? JSON.stringify(patient.address) : "",
-      emergencyContact: patient?.emergencyContact ? JSON.stringify(patient.emergencyContact) : "",
+      emergencyContact: patient?.emergencyContact
+        ? JSON.stringify(patient.emergencyContact)
+        : "",
       medicalHistory: patient?.medicalHistory || "",
       currentDiagnoses: patient?.currentDiagnoses || [],
       allergies: patient?.allergies || [],
@@ -86,10 +92,10 @@ export default function PatientDetailsDialog({
   const updatePatientMutation = useMutation({
     mutationFn: async (data: Partial<InsertPatient>) => {
       const response = await fetch(`/api/patients/${patient?.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: 'include',
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -99,7 +105,7 @@ export default function PatientDetailsDialog({
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       setIsEditing(false);
       toast({
         title: "Success",
@@ -118,8 +124,8 @@ export default function PatientDetailsDialog({
   const deletePatientMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/patients/${patient?.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
+        method: "DELETE",
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -129,7 +135,7 @@ export default function PatientDetailsDialog({
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       setShowDeleteDialog(false);
       onClose();
       toast({
@@ -152,11 +158,11 @@ export default function PatientDetailsDialog({
 
   if (!patient) return null;
 
-  const address = typeof patient.address === 'string'
+  const address = typeof patient.address === "string"
     ? JSON.parse(patient.address)
     : patient.address;
 
-  const emergencyContact = typeof patient.emergencyContact === 'string'
+  const emergencyContact = typeof patient.emergencyContact === "string"
     ? JSON.parse(patient.emergencyContact)
     : patient.emergencyContact;
 
@@ -187,7 +193,10 @@ export default function PatientDetailsDialog({
                       <Edit2 className="h-4 w-4 mr-2" />
                       Edit
                     </Button>
-                    <Button onClick={() => setShowDeleteDialog(true)} variant="destructive">
+                    <Button
+                      onClick={() => setShowDeleteDialog(true)}
+                      variant="destructive"
+                    >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
                     </Button>
@@ -199,7 +208,7 @@ export default function PatientDetailsDialog({
 
           <LoadingTransition>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-4">
+              <TabsList className="grid grid-cols-5">
                 <TabsTrigger value="basic">
                   <User className="h-4 w-4 mr-2" />
                   Basic Info
@@ -216,6 +225,10 @@ export default function PatientDetailsDialog({
                   <FileText className="h-4 w-4 mr-2" />
                   Documents
                 </TabsTrigger>
+                <TabsTrigger value="journal">
+                  <Book className="h-4 w-4 mr-2" />
+                  Journal
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="basic" className="space-y-4">
@@ -223,7 +236,9 @@ export default function PatientDetailsDialog({
                   <CardContent className="pt-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">First Name</p>
+                        <p className="text-sm text-muted-foreground">
+                          First Name
+                        </p>
                         {isEditing ? (
                           <Input {...form.register("firstName")} />
                         ) : (
@@ -231,7 +246,9 @@ export default function PatientDetailsDialog({
                         )}
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Last Name</p>
+                        <p className="text-sm text-muted-foreground">
+                          Last Name
+                        </p>
                         {isEditing ? (
                           <Input {...form.register("lastName")} />
                         ) : (
@@ -239,7 +256,9 @@ export default function PatientDetailsDialog({
                         )}
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Date of Birth</p>
+                        <p className="text-sm text-muted-foreground">
+                          Date of Birth
+                        </p>
                         {isEditing ? (
                           <Input type="date" {...form.register("dateOfBirth")} />
                         ) : (
@@ -267,13 +286,18 @@ export default function PatientDetailsDialog({
                       <div className="space-y-1">
                         <p className="text-sm text-muted-foreground">Gender</p>
                         {isEditing ? (
-                          <select {...form.register("gender")} className="w-full p-2 border rounded">
+                          <select
+                            {...form.register("gender")}
+                            className="w-full p-2 border rounded"
+                          >
                             <option value="male">Male</option>
                             <option value="female">Female</option>
                             <option value="other">Other</option>
                           </select>
                         ) : (
-                          <p className="font-medium capitalize">{patient.gender}</p>
+                          <p className="font-medium capitalize">
+                            {patient.gender}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -311,15 +335,23 @@ export default function PatientDetailsDialog({
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <p className="text-sm text-muted-foreground">Name</p>
-                          <p className="font-medium">{emergencyContact.name}</p>
+                          <p className="font-medium">
+                            {emergencyContact.name}
+                          </p>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">Relationship</p>
-                          <p className="font-medium">{emergencyContact.relationship}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Relationship
+                          </p>
+                          <p className="font-medium">
+                            {emergencyContact.relationship}
+                          </p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-muted-foreground">Phone</p>
-                          <p className="font-medium">{emergencyContact.phone}</p>
+                          <p className="font-medium">
+                            {emergencyContact.phone}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -351,12 +383,17 @@ export default function PatientDetailsDialog({
                       />
                     ) : (
                       <div className="space-y-2">
-                        {Array.isArray(patient.currentDiagnoses) && patient.currentDiagnoses.length > 0 ? (
-                          patient.currentDiagnoses.map((diagnosis: string, index: number) => (
-                            <p key={index}>{diagnosis}</p>
-                          ))
+                        {Array.isArray(patient.currentDiagnoses) &&
+                        patient.currentDiagnoses.length > 0 ? (
+                          patient.currentDiagnoses.map(
+                            (diagnosis: string, index: number) => (
+                              <p key={index}>{diagnosis}</p>
+                            )
+                          )
                         ) : (
-                          <p className="text-muted-foreground">No current diagnoses</p>
+                          <p className="text-muted-foreground">
+                            No current diagnoses
+                          </p>
                         )}
                       </div>
                     )}
@@ -373,12 +410,17 @@ export default function PatientDetailsDialog({
                       />
                     ) : (
                       <div className="space-y-2">
-                        {Array.isArray(patient.allergies) && patient.allergies.length > 0 ? (
-                          patient.allergies.map((allergy: string, index: number) => (
-                            <p key={index}>{allergy}</p>
-                          ))
+                        {Array.isArray(patient.allergies) &&
+                        patient.allergies.length > 0 ? (
+                          patient.allergies.map(
+                            (allergy: string, index: number) => (
+                              <p key={index}>{allergy}</p>
+                            )
+                          )
                         ) : (
-                          <p className="text-muted-foreground">No known allergies</p>
+                          <p className="text-muted-foreground">
+                            No known allergies
+                          </p>
                         )}
                       </div>
                     )}
@@ -423,7 +465,9 @@ export default function PatientDetailsDialog({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">No appointment history</p>
+                      <p className="text-muted-foreground">
+                        No appointment history
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -444,6 +488,10 @@ export default function PatientDetailsDialog({
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              <TabsContent value="journal" className="space-y-4">
+                <JournalSection patientId={patient?.id || 0} />
+              </TabsContent>
             </Tabs>
           </LoadingTransition>
         </DialogContent>
@@ -452,10 +500,12 @@ export default function PatientDetailsDialog({
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this patient?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Are you sure you want to delete this patient?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the patient's
-              record and all associated data.
+              This action cannot be undone. This will permanently delete the
+              patient's record and all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -386,6 +386,7 @@ export const patientRelations = relations(patients, ({ one, many }) => ({
   healthMetrics: many(healthMetrics),
   medicationSchedules: many(medicationSchedules),
   appointments: many(appointments),
+  journalEntries: many(journalEntries),
 }));
 
 export const carePlanRelations = relations(carePlans, ({ one, many }) => ({
@@ -758,3 +759,29 @@ export const selectCalendarEventSchema = createSelectSchema(calendarEvents);
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
 export type CalendarEventAttendee = typeof calendarEventAttendees.$inferSelect;
+
+export const journalEntries = pgTable("journal_entries", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  content: text("content").notNull(),
+  documentUrl: text("document_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdBy: integer("created_by").references(() => users.id).notNull(),
+});
+
+export const journalEntryRelations = relations(journalEntries, ({ one }) => ({
+  patient: one(patients, {
+    fields: [journalEntries.patientId],
+    references: [patients.id],
+  }),
+  creator: one(users, {
+    fields: [journalEntries.createdBy],
+    references: [users.id],
+  }),
+}));
+
+
+export const insertJournalEntrySchema = createInsertSchema(journalEntries);
+export const selectJournalEntrySchema = createSelectSchema(journalEntries);
+export type JournalEntry = typeof journalEntries.$inferSelect;
+export type InsertJournalEntry = typeof journalEntries.$inferInsert;
