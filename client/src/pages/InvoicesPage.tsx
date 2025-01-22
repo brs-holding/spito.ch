@@ -53,14 +53,14 @@ export default function InvoicesPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Invoices</CardTitle>
+            <CardTitle>Rechnungen</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Manage and create invoices for patients and insurance companies
+              Verwalten und erstellen Sie Rechnungen für Patienten und Versicherungen
             </p>
           </div>
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Invoice
+            Rechnung Erstellen
           </Button>
         </CardHeader>
         <CardContent>

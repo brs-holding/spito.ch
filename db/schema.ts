@@ -255,7 +255,6 @@ export const invoices = pgTable("invoices", {
     enum: ["draft", "pending", "paid", "overdue", "cancelled"] 
   }).notNull().default("draft"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  selbstbehaltAmount: decimal("selbstbehalt_amount", { precision: 10, scale: 2 }),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   dueDate: timestamp("due_date").notNull(),
@@ -515,7 +514,7 @@ export const taskHistoryRelations = relations(taskHistory, ({ one }) => ({
   }),
 }));
 
-export const invoiceRelations = relations(invoices, ({ one, many }) => ({
+export const invoiceRelations = relations(invoices, ({ one }) => ({
   patient: one(patients, {
     fields: [invoices.patientId],
     references: [patients.id],
@@ -524,8 +523,6 @@ export const invoiceRelations = relations(invoices, ({ one, many }) => ({
     fields: [invoices.insuranceId],
     references: [insuranceDetails.id],
   }),
-  items: many(invoiceItems),
-  payments: many(payments),
 }));
 
 export const invoiceItemRelations = relations(invoiceItems, ({ one }) => ({
@@ -655,17 +652,37 @@ export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type TaskAssignment = typeof taskAssignments.$inferSelect;
 export type InsertTaskAssignment = typeof taskAssignments.$inferInsert;
 
-export const insertInvoiceSchema = createInsertSchema(invoices);
+export const insertInvoiceSchema = createInsertSchema(invoices, {
+  patientId: z.number().min(1, "Patient is required"),
+  recipientType: z.enum(["insurance", "patient"]),
+  insuranceId: z.number().optional(),
+  totalAmount: z.string().min(1, "Total amount is required"),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
+  dueDate: z.string().min(1, "Due date is required"),
+  notes: z.string().optional(),
+  metadata: z.object({
+    purpose: z.string().optional(),
+    services: z.array(z.object({
+      category: z.string(),
+      name: z.string(),
+      hours: z.number(),
+      minutes: z.number(),
+      hourlyRate: z.number(),
+      amount: z.number(),
+    })).optional(),
+  }).optional(),
+});
+
 export const selectInvoiceSchema = createSelectSchema(invoices);
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 
 export const insertInvoiceItemSchema = createInsertSchema(invoiceItems);
 export const selectInvoiceItemSchema = createSelectSchema(invoiceItems);
 
 export const insertPaymentSchema = createInsertSchema(payments);
 export const selectPaymentSchema = createSelectSchema(payments);
-
-export type Invoice = typeof invoices.$inferSelect;
-export type InsertInvoice = typeof invoices.$inferInsert;
 
 export type InvoiceItem = typeof invoiceItems.$inferSelect;
 export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;
