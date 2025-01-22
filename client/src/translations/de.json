@@ -1,0 +1,91 @@
+{
+  "common": {
+    "loading": "Wird geladen...",
+    "error": "Ein Fehler ist aufgetreten",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "close": "Schließen",
+    "submit": "Absenden",
+    "success": "Erfolgreich",
+    "required": "Pflichtfeld"
+  },
+  "auth": {
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "register": "Registrieren",
+    "forgotPassword": "Passwort vergessen?"
+  },
+  "appointments": {
+    "title": "Termine",
+    "new": "Neuer Termin",
+    "selectDate": "Datum auswählen",
+    "selectTime": "Uhrzeit auswählen",
+    "chooseTimeSlot": "Wählen Sie einen Zeitslot",
+    "noTimeSlots": "Keine verfügbaren Zeitslots für dieses Datum. Bitte wählen Sie ein anderes Datum.",
+    "appointmentType": "Terminart",
+    "selectAppointmentType": "Wählen Sie die Art des Termins",
+    "symptoms": "Symptome oder Beschwerden",
+    "symptomsPlaceholder": "Bitte beschreiben Sie Ihre Symptome oder Beschwerden...",
+    "bookAppointment": "Termin buchen",
+    "bookTelemedicine": "Telemedizin-Termin buchen",
+    "appointmentDetails": "Termindetails",
+    "confirmAppointment": "Termin bestätigen",
+    "cancelAppointment": "Termin absagen",
+    "rescheduleAppointment": "Termin verschieben"
+  },
+  "patient": {
+    "basicInfo": "Grundinformationen",
+    "medical": "Medizinisch",
+    "appointments": "Termine",
+    "documents": "Dokumente",
+    "journal": "Journal",
+    "personalInfo": "Persönliche Informationen",
+    "contactInfo": "Kontaktinformationen",
+    "emergencyContact": "Notfallkontakt",
+    "medicalHistory": "Krankengeschichte",
+    "medications": "Medikamente",
+    "allergies": "Allergien",
+    "diagnoses": "Diagnosen",
+    "noAppointments": "Keine Terminhistorie",
+    "uploadDocument": "Dokument hochladen",
+    "documentType": "Dokumententyp",
+    "documentDate": "Dokumentendatum"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "patients": "Patienten",
+    "schedule": "Terminplan",
+    "documents": "Dokumente",
+    "settings": "Einstellungen",
+    "profile": "Profil",
+    "help": "Hilfe"
+  },
+  "dashboard": {
+    "welcome": "Willkommen",
+    "upcomingAppointments": "Anstehende Termine",
+    "recentDocuments": "Aktuelle Dokumente",
+    "patientOverview": "Patientenübersicht",
+    "quickActions": "Schnellzugriff"
+  },
+  "errorMessages": {
+    "notAuthenticated": "Nicht authentifiziert",
+    "notAuthorized": "Nicht berechtigt",
+    "invalidInput": "Ungültige Eingabe",
+    "timeSlotBooked": "Zeitslot bereits gebucht",
+    "outsideBusinessHours": "Termine sind nur zwischen 9 Uhr und 17 Uhr möglich",
+    "serverError": "Serverfehler aufgetreten",
+    "connectionError": "Verbindungsfehler",
+    "validationError": "Überprüfen Sie Ihre Eingaben"
+  },
+  "status": {
+    "scheduled": "Geplant",
+    "confirmed": "Bestätigt",
+    "cancelled": "Storniert",
+    "completed": "Abgeschlossen",
+    "inProgress": "In Bearbeitung"
+  }
+}
