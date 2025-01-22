@@ -4,6 +4,7 @@ import { UserPlus, Users, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
+import { t } from "@/lib/i18n";
 
 const container = {
   hidden: { opacity: 0 },
@@ -37,7 +38,7 @@ export default function EmployeeOverview() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          Employee Overview
+          {t('employees.overview')}
         </motion.h2>
         <motion.div
           initial={{ opacity: 0, x: 20 }}
@@ -49,7 +50,7 @@ export default function EmployeeOverview() {
             className="w-full sm:w-auto flex items-center justify-center gap-2 transition-all hover:scale-105"
           >
             <UserPlus className="h-4 w-4" />
-            Add Employee
+            {t('employees.addEmployee')}
           </Button>
         </motion.div>
       </div>
@@ -63,7 +64,7 @@ export default function EmployeeOverview() {
         <motion.div variants={item}>
           <Card className="transition-all hover:shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('employees.totalEmployees')}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -76,7 +77,7 @@ export default function EmployeeOverview() {
                 {employees.length}
               </motion.div>
               <p className="text-xs text-muted-foreground">
-                Registered staff members
+                {t('employees.registeredStaff')}
               </p>
             </CardContent>
           </Card>
@@ -85,7 +86,7 @@ export default function EmployeeOverview() {
         <motion.div variants={item}>
           <Card className="transition-all hover:shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Employees</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('employees.activeEmployees')}</CardTitle>
               <Briefcase className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -98,7 +99,7 @@ export default function EmployeeOverview() {
                 {activeEmployees}
               </motion.div>
               <p className="text-xs text-muted-foreground">
-                Currently active staff
+                {t('employees.currentlyActive')}
               </p>
             </CardContent>
           </Card>
@@ -107,7 +108,7 @@ export default function EmployeeOverview() {
         <motion.div variants={item}>
           <Card className="transition-all hover:shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Recent Hires</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('employees.recentHires')}</CardTitle>
               <UserPlus className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -125,7 +126,7 @@ export default function EmployeeOverview() {
                 }).length}
               </motion.div>
               <p className="text-xs text-muted-foreground">
-                Added in the last 30 days
+                {t('employees.addedLastThirtyDays')}
               </p>
             </CardContent>
           </Card>

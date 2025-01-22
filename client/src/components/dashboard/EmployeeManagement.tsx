@@ -29,16 +29,16 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import SubUserOverview from "./SubUserOverview";
-import EmployeeDetailsDialog from "./EmployeeDetailsDialog"; // Added import
+import EmployeeDetailsDialog from "./EmployeeDetailsDialog";
 import { queryClient } from "@/lib/queryClient";
 import { useState } from "react";
+import { t } from "@/lib/i18n";
 
-// Simplified schema with only essential fields
 const employeeSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  username: z.string().min(1, t("common.required")),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Valid email is required"),
-  fullName: z.string().min(1, "Full name is required"),
+  fullName: z.string().min(1, t("common.required")),
 });
 
 type EmployeeFormData = z.infer<typeof employeeSchema>;
@@ -46,7 +46,7 @@ type EmployeeFormData = z.infer<typeof employeeSchema>;
 export function EmployeeManagement() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null); // Added state
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
@@ -87,8 +87,8 @@ export function EmployeeManagement() {
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "Employee added successfully",
+        title: t("common.success"),
+        description: "Mitarbeiter erfolgreich hinzugefügt",
       });
       setDialogOpen(false);
       form.reset();
@@ -108,14 +108,14 @@ export function EmployeeManagement() {
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div>{t("common.loading")}</div>;
   }
 
-  const maxUsers = organization?.maxCaregivers || 3; // Default to 3 if not set
+  const maxUsers = organization?.maxCaregivers || 3;
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <h2 className="text-2xl font-bold">Employee Management</h2>
+      <h2 className="text-2xl font-bold">{t('employees.overview')}</h2>
 
       <SubUserOverview
         totalUsers={employees.length}
@@ -134,7 +134,7 @@ export function EmployeeManagement() {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Employee</DialogTitle>
+            <DialogTitle>{t('employees.addEmployee')}</DialogTitle>
           </DialogHeader>
 
           <Form {...form}>
@@ -145,7 +145,7 @@ export function EmployeeManagement() {
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel>{t('auth.username')}</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -159,7 +159,7 @@ export function EmployeeManagement() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel>{t('auth.password')}</FormLabel>
                       <FormControl>
                         <Input type="password" {...field} />
                       </FormControl>
@@ -187,7 +187,7 @@ export function EmployeeManagement() {
                   name="fullName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                      <FormLabel>Name</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -202,7 +202,7 @@ export function EmployeeManagement() {
                   type="submit" 
                   disabled={addEmployeeMutation.isPending}
                 >
-                  {addEmployeeMutation.isPending ? "Adding..." : "Add Employee"}
+                  {addEmployeeMutation.isPending ? t("common.loading") : t("employees.addEmployee")}
                 </Button>
               </div>
             </form>
@@ -213,8 +213,8 @@ export function EmployeeManagement() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Username</TableHead>
-            <TableHead>Full Name</TableHead>
+            <TableHead>{t('auth.username')}</TableHead>
+            <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
@@ -224,12 +224,12 @@ export function EmployeeManagement() {
             <TableRow 
               key={employee.id}
               className="cursor-pointer hover:bg-accent/50"
-              onClick={() => setSelectedEmployee(employee)} // Added onClick handler
+              onClick={() => setSelectedEmployee(employee)}
             >
               <TableCell>{employee.username}</TableCell>
               <TableCell>{employee.fullName}</TableCell>
               <TableCell>{employee.email}</TableCell>
-              <TableCell>{employee.isActive ? "Active" : "Inactive"}</TableCell>
+              <TableCell>{employee.isActive ? "Aktiv" : "Inaktiv"}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -239,7 +239,7 @@ export function EmployeeManagement() {
         employee={selectedEmployee}
         open={!!selectedEmployee}
         onClose={() => setSelectedEmployee(null)}
-      /> {/* Added EmployeeDetailsDialog */}
+      />
     </div>
   );
 }
