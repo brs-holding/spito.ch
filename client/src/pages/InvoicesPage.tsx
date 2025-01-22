@@ -34,7 +34,6 @@ export default function InvoicesPage() {
 
   const { data: invoices, isLoading } = useQuery<Invoice[]>({
     queryKey: ["/api/invoices"],
-    refetchInterval: 5000, // Refresh every 5 seconds to ensure we have the latest data
   });
 
   const formattedInvoices = invoices?.map(invoice => ({
@@ -47,7 +46,7 @@ export default function InvoicesPage() {
       style: 'currency',
       currency: 'CHF'
     }).format(Number(invoice.totalAmount))
-  }));
+  })) ?? [];
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -67,7 +66,7 @@ export default function InvoicesPage() {
         <CardContent>
           <DataTable 
             columns={columns} 
-            data={formattedInvoices || []} 
+            data={formattedInvoices} 
             isLoading={isLoading}
           />
         </CardContent>

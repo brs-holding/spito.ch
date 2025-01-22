@@ -987,7 +987,6 @@ export function registerRoutes(app: Express): Server {
     if (!patient) {
       return res.status(404).send("Patient profile not found");
     }
-
     const newAdherence = await db
       .insert(medicationAdherence)
       .values(req.body)
@@ -1247,14 +1246,14 @@ export function registerRoutes(app: Express): Server {
       if (!req.user) {
         return res.status(401).send("Not authenticated");
       }
-      
+
       if (req.user.role === "spitex_org" && req.user.organizationId) {
         // Organizations see all their patients' invoices
         const orgPatients = await db
           .select({ id: patients.id })
           .from(patients)
           .where(eq(patients.organizationId, req.user.organizationId));
-        
+
         const patientIds = orgPatients.map(p => p.id);
         if (patientIds.length > 0) {
           query = query.where(sql`${invoices.patientId} IN (${patientIds.join(',')})`);
