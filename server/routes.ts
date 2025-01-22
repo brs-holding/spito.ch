@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import path from "path";
@@ -33,13 +33,13 @@ import {
   insertCalendarEventSchema,
   insertUserSchema,
 } from "@db/schema";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 // Get current directory in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-interface AuthenticatedRequest extends express.Request {
+interface AuthenticatedRequest extends Request {
   user: {
     id: number;
     organizationId?: number;
