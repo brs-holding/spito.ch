@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Combobox } from "@/components/ui/combobox";
+import { t } from "@/lib/i18n";
 
 interface TaskBoardProps {
   userId?: number;
@@ -198,17 +199,17 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
     <Card className={minimal ? "border-0 shadow-none" : undefined}>
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle>Tasks</CardTitle>
+          <CardTitle>{t('tasks.title')}</CardTitle>
           <div className="flex items-center gap-4">
             <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Filter by" />
+                <SelectValue placeholder={t('tasks.filterBy')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Tasks</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="all">{t('tasks.allTasks')}</SelectItem>
+                <SelectItem value="pending">{t('tasks.pending')}</SelectItem>
+                <SelectItem value="in_progress">{t('tasks.inProgress')}</SelectItem>
+                <SelectItem value="completed">{t('tasks.completed')}</SelectItem>
               </SelectContent>
             </Select>
             {showAddButton && (
@@ -216,7 +217,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                 <DialogTrigger asChild>
                   <Button size="sm" className="flex items-center gap-2">
                     <Plus className="h-4 w-4" />
-                    Add Task
+                    {t('tasks.addTask')}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>

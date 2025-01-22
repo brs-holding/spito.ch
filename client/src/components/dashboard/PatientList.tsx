@@ -16,6 +16,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import PatientDetailsDialog from "../patients/PatientDetailsDialog";
 import { LoadingTransition } from "@/components/ui/LoadingTransition";
+import { t } from "@/lib/i18n";
 
 export default function PatientList() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -34,11 +35,11 @@ export default function PatientList() {
       <Card className="h-[calc(50vh-2rem)]">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Patients</CardTitle>
+            <CardTitle>{t('patients.title')}</CardTitle>
             <Link href="/register-patient">
               <Button size="sm" className="cursor-pointer">
                 <UserPlus className="h-4 w-4 mr-2" />
-                Add Patient
+                {t('patients.addPatient')}
               </Button>
             </Link>
           </div>
@@ -47,7 +48,7 @@ export default function PatientList() {
           <div className="relative mb-4">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search patients..."
+              placeholder={t('common.search')}
               className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -60,8 +61,8 @@ export default function PatientList() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Date of Birth</TableHead>
-                    <TableHead>Contact</TableHead>
+                    <TableHead>{t('patients.dateOfBirth')}</TableHead>
+                    <TableHead>{t('patients.contactInfo')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
