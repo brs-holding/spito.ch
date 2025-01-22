@@ -9,12 +9,12 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { insertBillingSchema, type InsertBilling } from "@db/schema";
 import { queryClient } from "@/lib/queryClient";
-import { useQuery } from "@tanstack/react-query";
 import {
   Select,
   SelectContent,
@@ -22,11 +22,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/hooks/use-user";
+import { SERVICE_CATEGORIES } from "@/lib/constants";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+
+interface ServiceTime {
+  hours: number;
+  minutes: number;
+  category: keyof typeof SERVICE_CATEGORIES | "";
+}
 
 export function BillingForm() {
   const { toast } = useToast();
   const { user } = useUser();
+  const [serviceTime, setServiceTime] = useState<ServiceTime>({
+    hours: 0,
+    minutes: 0,
+    category: "",
+  });
+
+  const calculateAmount = () => {
+    if (!serviceTime.category) return 0;
+
+    const hourlyRate = SERVICE_CATEGORIES[serviceTime.category].hourlyRate;
+    const totalHours = serviceTime.hours + (serviceTime.minutes / 60);
+    return hourlyRate * totalHours;
+  };
 
   const form = useForm<InsertBilling>({
     resolver: zodResolver(insertBillingSchema),
@@ -41,6 +64,11 @@ export function BillingForm() {
   const { data: patients } = useQuery({
     queryKey: ["/api/patients"],
   });
+
+  useEffect(() => {
+    const amount = calculateAmount();
+    form.setValue("amount", amount);
+  }, [serviceTime]);
 
   async function onSubmit(data: InsertBilling) {
     try {
@@ -61,24 +89,22 @@ export function BillingForm() {
       }
 
       toast({
-        title: "Erfolg",
-        description: "Abrechnung erfolgreich erstellt",
+        title: "Success",
+        description: "Billing record created successfully",
       });
 
-      // Reset form
       form.reset();
+      setServiceTime({ hours: 0, minutes: 0, category: "" });
 
-      // Refresh billing data
       await queryClient.invalidateQueries({ queryKey: ["/api/billings"] });
 
-      // Close dialog if needed
       const dialogClose = document.querySelector('[data-dialog-close]');
       if (dialogClose instanceof HTMLElement) {
         dialogClose.click();
       }
     } catch (error) {
       toast({
-        title: "Fehler",
+        title: "Error",
         description: error instanceof Error ? error.message : "Failed to create billing",
         variant: "destructive",
       });
@@ -100,7 +126,7 @@ export function BillingForm() {
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Patient auswählen" />
+                    <SelectValue placeholder="Select patient" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -115,22 +141,103 @@ export function BillingForm() {
             </FormItem>
           )}
         />
+
+        <FormItem>
+          <FormLabel>Service Category</FormLabel>
+          <Select
+            value={serviceTime.category}
+            onValueChange={(value: keyof typeof SERVICE_CATEGORIES) => 
+              setServiceTime(prev => ({ ...prev, category: value }))
+            }
+          >
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder="Select service category" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {Object.entries(SERVICE_CATEGORIES).map(([key, category]) => (
+                <SelectItem key={key} value={key}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {serviceTime.category && (
+            <FormDescription>
+              {SERVICE_CATEGORIES[serviceTime.category].description}
+              <br />
+              Hourly rate: CHF {SERVICE_CATEGORIES[serviceTime.category].hourlyRate.toFixed(2)}
+            </FormDescription>
+          )}
+        </FormItem>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormItem>
+            <FormLabel>Hours</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                min="0"
+                value={serviceTime.hours}
+                onChange={(e) => 
+                  setServiceTime(prev => ({
+                    ...prev,
+                    hours: parseInt(e.target.value) || 0
+                  }))
+                }
+              />
+            </FormControl>
+          </FormItem>
+
+          <FormItem>
+            <FormLabel>Minutes</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                min="0"
+                max="59"
+                value={serviceTime.minutes}
+                onChange={(e) => 
+                  setServiceTime(prev => ({
+                    ...prev,
+                    minutes: parseInt(e.target.value) || 0
+                  }))
+                }
+              />
+            </FormControl>
+          </FormItem>
+        </div>
+
+        {serviceTime.category && (
+          <Card className="bg-muted">
+            <CardContent className="pt-4">
+              <p className="text-sm mb-2">Calculation Breakdown:</p>
+              <div className="space-y-1 text-sm">
+                <p>Service: {SERVICE_CATEGORIES[serviceTime.category].name}</p>
+                <p>Time: {serviceTime.hours}h {serviceTime.minutes}min</p>
+                <p>Rate: CHF {SERVICE_CATEGORIES[serviceTime.category].hourlyRate}/hour</p>
+                <p className="font-bold pt-2">
+                  Total Amount: CHF {calculateAmount().toFixed(2)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <FormField
           control={form.control}
           name="amount"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Betrag (CHF)</FormLabel>
+            <FormItem className="hidden">
               <FormControl>
                 <Input
                   type="number"
                   step="0.01"
-                  min="0"
                   {...field}
                   onChange={(e) => field.onChange(parseFloat(e.target.value))}
                 />
               </FormControl>
-              <FormMessage />
             </FormItem>
           )}
         />
@@ -140,7 +247,7 @@ export function BillingForm() {
           name="time"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Zeit</FormLabel>
+              <FormLabel>Date and Time</FormLabel>
               <FormControl>
                 <Input type="datetime-local" {...field} />
               </FormControl>
@@ -154,7 +261,7 @@ export function BillingForm() {
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notizen</FormLabel>
+              <FormLabel>Notes</FormLabel>
               <FormControl>
                 <Textarea {...field} />
               </FormControl>
@@ -164,7 +271,7 @@ export function BillingForm() {
         />
 
         <Button type="submit" className="w-full">
-          Abrechnung erstellen
+          Create Billing
         </Button>
       </form>
     </Form>
