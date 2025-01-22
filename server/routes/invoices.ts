@@ -3,15 +3,12 @@ import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { 
   invoices, 
-  invoiceItems,
-  serviceLogs,
+  patients,
   type InsertInvoice
 } from "@db/schema";
 
 export async function createInvoice(req: Request, res: Response) {
   try {
-    console.log("Creating invoice with data:", req.body);
-    
     if (!req.user) {
       return res.status(401).json({ message: "Not authenticated" });
     }
@@ -70,21 +67,21 @@ export async function createInvoice(req: Request, res: Response) {
       status: "draft",
       metadata: {
         ...metadata,
-        purpose
+        purpose,
+        createdBy: req.user.fullName,
+        createdAt: new Date().toISOString(),
       },
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    console.log("Prepared invoice data:", invoiceData);
-
     // Create invoice
-    const [invoice] = await db.insert(invoices)
+    const [newInvoice] = await db.insert(invoices)
       .values(invoiceData)
       .returning();
 
-    console.log("Created invoice:", invoice);
-    return res.status(201).json(invoice);
+    console.log("Created invoice:", newInvoice);
+    return res.status(201).json(newInvoice);
   } catch (error: any) {
     console.error("Failed to create invoice:", error);
     return res.status(500).json({ 
@@ -96,26 +93,58 @@ export async function createInvoice(req: Request, res: Response) {
 
 export async function listInvoices(req: Request, res: Response) {
   try {
-    const { patientId, status } = req.query;
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
     let query = db.select().from(invoices);
 
-    if (patientId) {
-      const parsedPatientId = Number(patientId);
+    // If patientId is provided, filter by patient
+    if (req.query.patientId) {
+      const parsedPatientId = Number(req.query.patientId);
       if (!isNaN(parsedPatientId)) {
         query = query.where(eq(invoices.patientId, parsedPatientId));
       }
     }
 
-    if (status) {
-      query = query.where(eq(invoices.status, String(status)));
-    }
-
+    // Get all invoices for the organization
     const results = await query;
     return res.json(results);
   } catch (error: any) {
     console.error("Failed to list invoices:", error);
     return res.status(500).json({ 
       message: "Failed to fetch invoices", 
+      error: error.message 
+    });
+  }
+}
+
+export async function getInvoice(req: Request, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const invoiceId = Number(req.params.id);
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ message: "Invalid invoice ID" });
+    }
+
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, invoiceId))
+      .limit(1);
+
+    if (!invoice) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    return res.json(invoice);
+  } catch (error: any) {
+    console.error("Failed to get invoice:", error);
+    return res.status(500).json({ 
+      message: "Failed to fetch invoice", 
       error: error.message 
     });
   }
