@@ -1249,8 +1249,16 @@ export function registerRoutes(app: Express): Server {
       }
       
       if (req.user.role === "spitex_org" && req.user.organizationId) {
-        // Organizations see all their invoices
-        query = query.where(eq(invoices.organizationId, req.user.organizationId));
+        // Organizations see all their patients' invoices
+        const orgPatients = await db
+          .select({ id: patients.id })
+          .from(patients)
+          .where(eq(patients.organizationId, req.user.organizationId));
+        
+        const patientIds = orgPatients.map(p => p.id);
+        if (patientIds.length > 0) {
+          query = query.where(sql`${invoices.patientId} = ANY(${patientIds})`);
+        }
       } else if (req.user.role === "patient") {
         // Patients only see their invoices
         const [patient] = await db
