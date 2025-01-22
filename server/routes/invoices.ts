@@ -3,52 +3,68 @@ import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { 
   invoices, 
-  invoiceItems, 
-  serviceLogs, 
-  insertInvoiceSchema,
-  insertInvoiceItemSchema,
-  type InsertInvoice,
-  type InsertInvoiceItem 
+  invoiceItems,
+  serviceLogs,
+  type InsertInvoice
 } from "@db/schema";
 
 export async function createInvoice(req: Request, res: Response) {
   try {
-    const result = insertInvoiceSchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ 
-        message: "Invalid input", 
-        errors: result.error.errors 
+    console.log("Creating invoice with data:", req.body);
+
+    const {
+      patientId,
+      recipientType,
+      totalAmount,
+      selbstbehaltAmount,
+      startDate,
+      endDate,
+      dueDate,
+      metadata,
+      purpose
+    } = req.body;
+
+    // Validate required fields
+    if (!patientId || !totalAmount || !startDate || !endDate || !dueDate) {
+      return res.status(400).json({
+        message: "Missing required fields",
+        required: ["patientId", "totalAmount", "startDate", "endDate", "dueDate"]
       });
     }
 
-    const { startDate, endDate, patientId, ...rest } = result.data;
-
-    // Ensure patientId is a number
-    const parsedPatientId = Number(patientId);
-    if (isNaN(parsedPatientId)) {
-      return res.status(400).json({ message: "Invalid patient ID" });
-    }
-
-    // Generate unique invoice number (INVOICE-YYYYMMDD-XXXXX)
+    // Generate unique invoice number
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
     const random = Math.floor(Math.random() * 100000).toString().padStart(5, "0");
     const invoiceNumber = `INVOICE-${dateStr}-${random}`;
 
-    // Create invoice with properly typed data
+    // Prepare invoice data
+    const invoiceData = {
+      invoiceNumber,
+      patientId: Number(patientId),
+      recipientType: recipientType || "insurance",
+      totalAmount: totalAmount.toString(),
+      selbstbehaltAmount: selbstbehaltAmount?.toString(),
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      dueDate: new Date(dueDate),
+      status: "draft",
+      metadata: {
+        ...metadata,
+        purpose
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    console.log("Prepared invoice data:", invoiceData);
+
+    // Create invoice
     const [invoice] = await db.insert(invoices)
-      .values({
-        ...rest,
-        invoiceNumber,
-        patientId: parsedPatientId,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        status: "draft",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
+      .values(invoiceData)
       .returning();
 
+    console.log("Created invoice:", invoice);
     return res.status(201).json(invoice);
   } catch (error: any) {
     console.error("Failed to create invoice:", error);
