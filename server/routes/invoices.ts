@@ -11,6 +11,10 @@ import {
 export async function createInvoice(req: Request, res: Response) {
   try {
     console.log("Creating invoice with data:", req.body);
+    
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
 
     const {
       patientId,
@@ -30,6 +34,21 @@ export async function createInvoice(req: Request, res: Response) {
         message: "Missing required fields",
         required: ["patientId", "totalAmount", "startDate", "endDate", "dueDate"]
       });
+    }
+
+    // Verify patient exists and belongs to organization
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.id, Number(patientId)))
+      .limit(1);
+
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    if (patient.organizationId !== req.user.organizationId) {
+      return res.status(403).json({ message: "Not authorized to create invoice for this patient" });
     }
 
     // Generate unique invoice number
