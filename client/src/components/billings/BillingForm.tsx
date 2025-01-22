@@ -1,3 +1,4 @@
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
@@ -22,15 +23,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useUser } from "@/hooks/use-user";
 
 export function BillingForm() {
   const { toast } = useToast();
+  const { user } = useUser();
+  
   const form = useForm<InsertBilling>({
     resolver: zodResolver(insertBillingSchema),
     defaultValues: {
       amount: 0,
       time: new Date().toISOString().slice(0, 16),
       notes: "",
+      employeeId: user?.id,
     },
   });
 
@@ -45,26 +50,36 @@ export function BillingForm() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          employeeId: user?.id,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create billing');
       }
 
       toast({
-        title: "Success",
-        description: "Billing created successfully",
+        title: "Erfolg",
+        description: "Abrechnung erfolgreich erstellt",
       });
 
-      // Invalidate queries to refresh the data
+      // Reset form
+      form.reset();
+
+      // Refresh billing data
       await queryClient.invalidateQueries({ queryKey: ["/api/billings"] });
-      await queryClient.invalidateQueries({ 
-        queryKey: [`/api/patients/${data.patientId}/billings`]
-      });
+      
+      // Close dialog if needed
+      const dialogClose = document.querySelector('[data-dialog-close]');
+      if (dialogClose instanceof HTMLElement) {
+        dialogClose.click();
+      }
     } catch (error) {
       toast({
-        title: "Error",
+        title: "Fehler",
         description: error instanceof Error ? error.message : "Failed to create billing",
         variant: "destructive",
       });
@@ -86,7 +101,7 @@ export function BillingForm() {
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select patient" />
+                    <SelectValue placeholder="Patient auswählen" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -107,7 +122,7 @@ export function BillingForm() {
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Amount (CHF)</FormLabel>
+              <FormLabel>Betrag (CHF)</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -127,7 +142,7 @@ export function BillingForm() {
           name="time"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Time</FormLabel>
+              <FormLabel>Zeit</FormLabel>
               <FormControl>
                 <Input type="datetime-local" {...field} />
               </FormControl>
@@ -141,7 +156,7 @@ export function BillingForm() {
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notes</FormLabel>
+              <FormLabel>Notizen</FormLabel>
               <FormControl>
                 <Textarea {...field} />
               </FormControl>
@@ -151,7 +166,7 @@ export function BillingForm() {
         />
 
         <Button type="submit" className="w-full">
-          Create Billing
+          Abrechnung erstellen
         </Button>
       </form>
     </Form>
