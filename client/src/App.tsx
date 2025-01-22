@@ -12,8 +12,6 @@ import PatientsPage from "./pages/PatientsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import SchedulePage from "./pages/SchedulePage";
 import TasksPage from "./pages/TasksPage";
-import InvoicesPage from "./pages/InvoicesPage";
-import PatientInvoicesPage from "./pages/PatientInvoicesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
 import { useUser } from "./hooks/use-user";
@@ -54,15 +52,12 @@ function App() {
     );
   }
 
-  // Show appropriate routes based on user role
-  const isPatient = user.role === "patient";
-
   return (
     <>
       <Header />
       <main className="pt-16">
         <Switch>
-          <Route path="/" component={isPatient ? PatientDashboard : Dashboard} />
+          <Route path="/" component={user.role === "patient" ? PatientDashboard : Dashboard} />
           <Route path="/register-patient" component={PatientRegistration} />
           <Route path="/pricing" component={PricingPage} />
           <Route path="/employees">
@@ -72,9 +67,6 @@ function App() {
           <Route path="/appointments" component={AppointmentsPage} />
           <Route path="/schedule" component={SchedulePage} />
           <Route path="/tasks" component={TasksPage} />
-          <Route path="/invoices">
-            {isPatient ? <PatientInvoicesPage /> : <InvoicesPage />}
-          </Route>
           <Route path="/analytics">
             {["spitex_org", "super_admin"].includes(user.role) ? <AnalyticsPage /> : <NotFound />}
           </Route>

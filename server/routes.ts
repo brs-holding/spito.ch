@@ -28,8 +28,6 @@ import {
   visitLogs,
   videoSessions,
   notifications,
-  invoices,
-  insertInvoiceSchema,
   calendarEvents,
   calendarEventAttendees,
   insertCalendarEventSchema,
@@ -985,7 +983,7 @@ export function registerRoutes(app: Express): Server {
       .limit(1);
 
     if (!patient) {
-      return res.status(404).send("Patient profile not found");
+      return res.status(404).send(""Patient profile not found");
     }
     const newAdherence = await db
       .insert(medicationAdherence)
@@ -1212,180 +1210,6 @@ export function registerRoutes(app: Express): Server {
       console.error("Error fetching employee analytics:", error);
       res.status(500).json({
         message: "Failed to fetch employee analytics",
-        error: error.message,
-      });
-    }
-  });
-
-  // Invoice Routes
-  app.get("/api/invoices", async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      let query = db.select().from(invoices);
-
-      // For organization users, get invoices for their patients
-      if (req.user.role === "spitex_org" && req.user.organizationId) {
-        const orgPatients = await db
-          .select()
-          .from(patients)
-          .where(eq(patients.organizationId, req.user.organizationId));
-
-        const patientIds = orgPatients.map(p => p.id);
-
-        if (patientIds.length > 0) {
-          query = query.where(eq(invoices.patientId, sql.placeholder('patientId')));
-        }
-      }
-
-      // For individual patients, get their own invoices
-      if (req.user.role === "patient") {
-        const [patient] = await db
-          .select()
-          .from(patients)
-          .where(eq(patients.userId, req.user.id))
-          .limit(1);
-
-        if (patient) {
-          query = query.where(eq(invoices.patientId, patient.id));
-        }
-      }
-
-      const allInvoices = await query.orderBy(desc(invoices.createdAt));
-      res.json(allInvoices);
-    } catch (error: any) {
-      console.error("Error fetching invoices:", error);
-      res.status(500).json({
-        message: "Failed to fetch invoices",
-        error: error.message,
-      });
-    }
-  });
-
-  app.post("/api/invoices", async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const result = insertInvoiceSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({
-          message: "Invalid invoice data",
-          errors: result.error.issues,
-        });
-      }
-
-      // Generate invoice number
-      const date = new Date();
-      const dateStr = date.toISOString().slice(0,10).replace(/-/g,'');
-      const random = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
-      const invoiceNumber = `INV-${dateStr}-${random}`;
-
-      // Create the invoice
-      const [newInvoice] = await db
-        .insert(invoices)
-        .values({
-          ...result.data,
-          invoiceNumber,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          status: "draft"
-        })
-        .returning();
-
-      res.status(201).json(newInvoice);
-    } catch (error: any) {
-      console.error("Error creating invoice:", error);
-      res.status(500).json({
-        message: "Failed to create invoice",
-        error: error.message,
-      });
-    }
-  });
-
-  app.get("/api/patients/:patientId/invoices", async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const patientId = parseInt(req.params.patientId);
-      if (isNaN(patientId)) {
-        return res.status(400).json({ message: "Invalid patient ID" });
-      }
-
-      // Verify access rights
-      if (req.user.role === "spitex_org") {
-        const [patient] = await db
-          .select()
-          .from(patients)
-          .where(
-            and(
-              eq(patients.id, patientId),
-              eq(patients.organizationId, req.user.organizationId!)
-            )
-          )
-          .limit(1);
-
-        if (!patient) {
-          return res.status(404).json({ message: "Patient not found" });
-        }
-      }
-
-      const patientInvoices = await db
-        .select()
-        .from(invoices)
-        .where(eq(invoices.patientId, patientId))
-        .orderBy(desc(invoices.createdAt));
-
-      res.json(patientInvoices);
-    } catch (error: any) {
-      console.error("Error fetching patient invoices:", error);
-      res.status(500).json({
-        message: "Failed to fetch patient invoices",
-        error: error.message,
-      });
-    }
-  });
-
-  // Update invoice status
-  app.patch("/api/invoices/:id/status", async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const invoiceId = parseInt(req.params.id);
-      if (isNaN(invoiceId)) {
-        return res.status(400).json({ message: "Invalid invoice ID" });
-      }
-
-      const { status } = req.body;
-      if (!["draft", "pending", "paid", "overdue", "cancelled"].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
-      }
-
-      const [updatedInvoice] = await db
-        .update(invoices)
-        .set({
-          status,
-          updatedAt: new Date()
-        })
-        .where(eq(invoices.id, invoiceId))
-        .returning();
-
-      if (!updatedInvoice) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
-
-      res.json(updatedInvoice);
-    } catch (error: any) {
-      console.error("Error updating invoice status:", error);
-      res.status(500).json({
-        message: "Failed to update invoice status",
         error: error.message,
       });
     }
