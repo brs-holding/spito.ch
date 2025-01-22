@@ -1244,9 +1244,13 @@ export function registerRoutes(app: Express): Server {
         .orderBy(desc(invoices.createdAt));
 
       // Filter invoices based on user role
-      if (req.user.role === "spitex_org") {
+      if (!req.user) {
+        return res.status(401).send("Not authenticated");
+      }
+      
+      if (req.user.role === "spitex_org" && req.user.organizationId) {
         // Organizations see all their invoices
-        query = query.where(eq(invoices.organizationId, req.user.organizationId!));
+        query = query.where(eq(invoices.organizationId, req.user.organizationId));
       } else if (req.user.role === "patient") {
         // Patients only see their invoices
         const [patient] = await db
