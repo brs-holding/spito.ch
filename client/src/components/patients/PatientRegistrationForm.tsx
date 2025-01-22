@@ -35,34 +35,34 @@ import {
 } from "lucide-react";
 
 const addressSchema = z.object({
-  street: z.string().min(1, "Street is required"),
-  city: z.string().min(1, "City is required"),
-  state: z.string().min(1, "State is required"),
-  zipCode: z.string().min(1, "ZIP code is required"),
+  street: z.string().min(1, "Straße ist erforderlich"),
+  city: z.string().min(1, "Stadt ist erforderlich"),
+  state: z.string().min(1, "Bundesland ist erforderlich"),
+  zipCode: z.string().min(1, "Postleitzahl ist erforderlich"),
 });
 
 const emergencyContactSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  relationship: z.string().min(1, "Relationship is required"),
-  phone: z.string().min(1, "Phone number is required"),
+  name: z.string().min(1, "Name ist erforderlich"),
+  relationship: z.string().min(1, "Beziehung ist erforderlich"),
+  phone: z.string().min(1, "Telefonnummer ist erforderlich"),
 });
 
 const patientFormSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  firstName: z.string().min(1, "Vorname ist erforderlich"),
+  lastName: z.string().min(1, "Nachname ist erforderlich"),
+  dateOfBirth: z.string().min(1, "Geburtsdatum ist erforderlich"),
   gender: z.enum(["male", "female", "other"]),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(1, "Phone number is required"),
+  email: z.string().email("Ungültige E-Mail-Adresse"),
+  phone: z.string().min(1, "Telefonnummer ist erforderlich"),
   address: addressSchema,
   emergencyContact: emergencyContactSchema,
   medicalHistory: z.string().optional(),
   currentDiagnoses: z.array(z.string()).default([]),
   allergies: z.array(z.string()).default([]),
   primaryPhysicianContact: z.object({
-    name: z.string().min(1, "Physician name is required"),
-    phone: z.string().min(1, "Physician phone is required"),
-    email: z.string().email("Invalid email address").optional(),
+    name: z.string().min(1, "Name des Arztes ist erforderlich"),
+    phone: z.string().min(1, "Telefonnummer des Arztes ist erforderlich"),
+    email: z.string().email("Ungültige E-Mail-Adresse").optional(),
   }),
   preferences: z.string().optional(),
   familyAccess: z.array(z.object({
@@ -121,8 +121,8 @@ export default function PatientRegistrationForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/patients"] });
       toast({
-        title: "Success",
-        description: "Patient information saved successfully",
+        title: "Erfolg",
+        description: "Patientendaten erfolgreich gespeichert",
       });
       form.reset();
       setActiveTab("basic");
@@ -130,8 +130,8 @@ export default function PatientRegistrationForm() {
     onError: (error: Error) => {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to save patient information",
+        title: "Fehler",
+        description: error.message || "Patientendaten konnten nicht gespeichert werden",
       });
     },
   });
@@ -151,15 +151,15 @@ export default function PatientRegistrationForm() {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="basic">
               <User className="h-4 w-4 mr-2" />
-              Basic Info
+              Basisdaten
             </TabsTrigger>
             <TabsTrigger value="medical">
               <AlertCircle className="h-4 w-4 mr-2" />
-              Medical
+              Medizinische Daten
             </TabsTrigger>
             <TabsTrigger value="preferences">
               <FileText className="h-4 w-4 mr-2" />
-              Notes
+              Notizen
             </TabsTrigger>
           </TabsList>
 
@@ -170,7 +170,7 @@ export default function PatientRegistrationForm() {
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name</FormLabel>
+                    <FormLabel>Vorname</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -184,7 +184,7 @@ export default function PatientRegistrationForm() {
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Last Name</FormLabel>
+                    <FormLabel>Nachname</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -198,7 +198,7 @@ export default function PatientRegistrationForm() {
                 name="dateOfBirth"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date of Birth</FormLabel>
+                    <FormLabel>Geburtsdatum</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -212,17 +212,17 @@ export default function PatientRegistrationForm() {
                 name="gender"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Gender</FormLabel>
+                    <FormLabel>Geschlecht</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
+                          <SelectValue placeholder="Geschlecht auswählen" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="male">Männlich</SelectItem>
+                        <SelectItem value="female">Weiblich</SelectItem>
+                        <SelectItem value="other">Andere</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -235,7 +235,7 @@ export default function PatientRegistrationForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>E-Mail</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} />
                     </FormControl>
@@ -249,7 +249,7 @@ export default function PatientRegistrationForm() {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>Telefon</FormLabel>
                     <FormControl>
                       <Input type="tel" {...field} />
                     </FormControl>
@@ -260,14 +260,14 @@ export default function PatientRegistrationForm() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Address</h3>
+              <h3 className="text-lg font-medium">Adresse</h3>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="address.street"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Street</FormLabel>
+                      <FormLabel>Straße</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -281,7 +281,7 @@ export default function PatientRegistrationForm() {
                   name="address.city"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>City</FormLabel>
+                      <FormLabel>Stadt</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -295,7 +295,7 @@ export default function PatientRegistrationForm() {
                   name="address.state"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>State</FormLabel>
+                      <FormLabel>Bundesland</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -309,7 +309,7 @@ export default function PatientRegistrationForm() {
                   name="address.zipCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>ZIP Code</FormLabel>
+                      <FormLabel>Postleitzahl</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -321,7 +321,7 @@ export default function PatientRegistrationForm() {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Emergency Contact</h3>
+              <h3 className="text-lg font-medium">Notfallkontakt</h3>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -342,7 +342,7 @@ export default function PatientRegistrationForm() {
                   name="emergencyContact.relationship"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Relationship</FormLabel>
+                      <FormLabel>Beziehung</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -356,7 +356,7 @@ export default function PatientRegistrationForm() {
                   name="emergencyContact.phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>Telefon</FormLabel>
                       <FormControl>
                         <Input type="tel" {...field} />
                       </FormControl>
@@ -368,17 +368,18 @@ export default function PatientRegistrationForm() {
             </div>
           </TabsContent>
 
+          {/* ...rest of the component remains untranslated for brevity ... */}
           <TabsContent value="medical" className="space-y-4">
             <FormField
               control={form.control}
               name="medicalHistory"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Medical History</FormLabel>
+                  <FormLabel>Medizinische Vorgeschichte</FormLabel>
                   <FormControl>
                     <Textarea 
                       {...field} 
-                      placeholder="Enter relevant medical history..."
+                      placeholder="Relevante medizinische Vorgeschichte eingeben..."
                     />
                   </FormControl>
                   <FormMessage />
@@ -387,7 +388,7 @@ export default function PatientRegistrationForm() {
             />
 
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Primary Physician</h3>
+              <h3 className="text-lg font-medium">Hausarzt</h3>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -408,7 +409,7 @@ export default function PatientRegistrationForm() {
                   name="primaryPhysicianContact.phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>Telefon</FormLabel>
                       <FormControl>
                         <Input type="tel" {...field} />
                       </FormControl>
@@ -422,7 +423,7 @@ export default function PatientRegistrationForm() {
                   name="primaryPhysicianContact.email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>E-Mail</FormLabel>
                       <FormControl>
                         <Input type="email" {...field} />
                       </FormControl>
@@ -440,11 +441,11 @@ export default function PatientRegistrationForm() {
               name="preferences"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Care Preferences</FormLabel>
+                  <FormLabel>Pflegepräferenzen</FormLabel>
                   <FormControl>
                     <Textarea 
                       {...field} 
-                      placeholder="Enter care preferences..."
+                      placeholder="Pflegepräferenzen eingeben..."
                     />
                   </FormControl>
                   <FormMessage />
@@ -460,13 +461,13 @@ export default function PatientRegistrationForm() {
             variant="outline"
             onClick={() => form.reset()}
           >
-            Reset
+            Zurücksetzen
           </Button>
           <Button 
             type="submit" 
             disabled={createPatient.isPending}
           >
-            {createPatient.isPending ? "Registering..." : "Register Patient"}
+            {createPatient.isPending ? "Registrierung..." : "Patient registrieren"}
           </Button>
         </div>
       </form>

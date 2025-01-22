@@ -39,7 +39,7 @@ export default function Sidebar({ user }: SidebarProps) {
           <Link href="/">
             <Button variant="ghost" className="w-full justify-start">
               <LayoutDashboard className="mr-2 h-4 w-4" />
-              Dashboard
+              Dashboard{/* Übersichtsseite */}
             </Button>
           </Link>
 
@@ -47,7 +47,7 @@ export default function Sidebar({ user }: SidebarProps) {
             <Link href="/employees">
               <Button variant="ghost" className="w-full justify-start">
                 <UserPlus className="mr-2 h-4 w-4" />
-                Employees
+                Mitarbeiter{/* Angestellte */}
               </Button>
             </Link>
           )}
@@ -55,35 +55,35 @@ export default function Sidebar({ user }: SidebarProps) {
           <Link href="/patients">
             <Button variant="ghost" className="w-full justify-start">
               <Users className="mr-2 h-4 w-4" />
-              Patients
+              Patienten
             </Button>
           </Link>
 
           <Link href="/care-plans">
             <Button variant="ghost" className="w-full justify-start">
               <ClipboardList className="mr-2 h-4 w-4" />
-              Care Plans
+              Pflegepläne
             </Button>
           </Link>
 
           <Link href="/schedule">
             <Button variant="ghost" className="w-full justify-start">
               <Calendar className="mr-2 h-4 w-4" />
-              Schedule
+              Terminplan
             </Button>
           </Link>
 
           <Link href="/invoices">
             <Button variant="ghost" className="w-full justify-start">
               <Receipt className="mr-2 h-4 w-4" />
-              Invoices
+              Rechnungen
             </Button>
           </Link>
 
           <Link href="/settings">
             <Button variant="ghost" className="w-full justify-start">
               <Settings className="mr-2 h-4 w-4" />
-              Settings
+              Einstellungen
             </Button>
           </Link>
         </nav>
@@ -95,7 +95,7 @@ export default function Sidebar({ user }: SidebarProps) {
             onClick={() => logout()}
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Logout
+            Abmelden
           </Button>
         </div>
       </div>

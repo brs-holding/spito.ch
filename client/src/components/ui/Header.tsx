@@ -33,19 +33,19 @@ export default function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuItem onSelect={() => setOpenDialog('carePlans')}>
-                  Care Plans
+                  Pflegepläne
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setOpenDialog('schedule')}>
-                  Schedule
+                  Terminplan
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/patients">Patients</Link>
+                  <Link href="/patients">Patienten</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/appointments">Appointments</Link>
+                  <Link href="/appointments">Termine</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setOpenDialog('settings')}>
-                  Settings
+                  Einstellungen
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -64,19 +64,19 @@ export default function Header() {
               <>
                 <NotificationCenter />
                 <Button variant="outline" size="sm" asChild>
-                  <Link href="/logout">Logout</Link>
+                  <Link href="/logout">Abmelden</Link>
                 </Button>
               </>
             ) : (
               <>
                 <Link href="/pricing" className="text-sm font-medium hover:text-primary">
-                  Pricing
+                  Preise
                 </Link>
                 <Link href="/login" className="text-sm font-medium hover:text-primary">
-                  Login
+                  Anmelden
                 </Link>
                 <Link href="/register">
-                  <Button size="sm">Register</Button>
+                  <Button size="sm">Registrieren</Button>
                 </Link>
               </>
             )}

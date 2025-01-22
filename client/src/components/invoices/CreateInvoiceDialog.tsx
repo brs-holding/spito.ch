@@ -194,7 +194,7 @@ export function CreateInvoiceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Create New Invoice</DialogTitle>
+          <DialogTitle>Rechnung erstellen</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
