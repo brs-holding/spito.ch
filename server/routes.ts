@@ -1815,11 +1815,35 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      let query = db.select().from(billings);
+      let query = db
+        .select({
+          id: billings.id,
+          amount: billings.amount,
+          time: billings.time,
+          notes: billings.notes,
+          patientId: billings.patientId,
+          employeeId: billings.employeeId,
+          patient: {
+            id: patients.id,
+            firstName: patients.firstName,
+            lastName: patients.lastName,
+          },
+          employee: {
+            id: users.id,
+            fullName: users.fullName,
+          },
+        })
+        .from(billings)
+        .leftJoin(patients, eq(billings.patientId, patients.id))
+        .leftJoin(users, eq(billings.employeeId, users.id))
+        .orderBy(desc(billings.time));
 
       // Filter based on user role
-      if (req.user.role === "spitex_org") {
-        // Organization admin can see all billings within their org
+      if (req.user.role === "spitex_employee") {
+        // Employees only see their own billings
+        query = query.where(eq(billings.employeeId, req.user.id));
+      } else if (req.user.role === "spitex_org") {
+        // Organizations see billings for all their employees
         const employees = await db
           .select()
           .from(users)
@@ -1829,13 +1853,23 @@ export function registerRoutes(app: Express): Server {
           const employeeIds = employees.map(e => e.id);
           query = query.where(inArray(billings.employeeId, employeeIds));
         }
-      } else if (req.user.role === "spitex_employee") {
-        // Employees can only see their own billings
-        query = query.where(eq(billings.employeeId, req.user.id));
       }
 
-      const allBillings = await query.orderBy(desc(billings.time));
-      res.json(allBillings);
+      const allBillings = await query;
+
+      // Format the billing data to include full names
+      const formattedBillings = allBillings.map(billing => ({
+        id: billing.id,
+        amount: billing.amount,
+        time: billing.time,
+        notes: billing.notes,
+        patientId: billing.patientId,
+        employeeId: billing.employeeId,
+        patientName: billing.patient ? `${billing.patient.firstName} ${billing.patient.lastName}` : 'Unknown Patient',
+        employeeName: billing.employee ? billing.employee.fullName : 'Unknown Employee'
+      }));
+
+      res.json(formattedBillings);
     } catch (error: any) {
       console.error("Error fetching billings:", error);
       res.status(500).json({
@@ -1939,25 +1973,28 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      let query = db.select({
-        id: billings.id,
-        amount: billings.amount,
-        time: billings.time,
-        notes: billings.notes,
-        patientId: billings.patientId,
-        employeeId: billings.employeeId,
-        patient: {
-          firstName: patients.firstName,
-          lastName: patients.lastName,
-        },
-        employee: {
-          fullName: users.fullName,
-        },
-      })
-      .from(billings)
-      .leftJoin(patients, eq(billings.patientId, patients.id))
-      .leftJoin(users, eq(billings.employeeId, users.id))
-      .orderBy(desc(billings.time));
+      let query = db
+        .select({
+          id: billings.id,
+          amount: billings.amount,
+          time: billings.time,
+          notes: billings.notes,
+          patientId: billings.patientId,
+          employeeId: billings.employeeId,
+          patient: {
+            id: patients.id,
+            firstName: patients.firstName,
+            lastName: patients.lastName,
+          },
+          employee: {
+            id: users.id,
+            fullName: users.fullName,
+          },
+        })
+        .from(billings)
+        .leftJoin(patients, eq(billings.patientId, patients.id))
+        .leftJoin(users, eq(billings.employeeId, users.id))
+        .orderBy(desc(billings.time));
 
       // Filter based on user role
       if (req.user.role === "spitex_employee") {
@@ -1977,11 +2014,269 @@ export function registerRoutes(app: Express): Server {
       }
 
       const allBillings = await query;
-      res.json(allBillings);
+
+      // Format the billing data to include full names
+      const formattedBillings = allBillings.map(billing => ({
+        id: billing.id,
+        amount: billing.amount,
+        time: billing.time,
+        notes: billing.notes,
+        patientId: billing.patientId,
+        employeeId: billing.employeeId,
+        patientName: billing.patient ? `${billing.patient.firstName} ${billing.patient.lastName}` : 'Unknown Patient',
+        employeeName: billing.employee ? billing.employee.fullName : 'Unknown Employee'
+      }));
+
+      res.json(formattedBillings);
     } catch (error: any) {
       console.error("Error fetching billings:", error);
       res.status(500).json({
         message: "Failed to fetch billings",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/billings", async (req: AuthenticatedRequest, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      console.log('Received billing data:', req.body);
+
+      const result = insertBillingSchema.safeParse({
+        ...req.body,
+        employeeId: req.user.id,
+      });
+
+      if (!result.success) {
+        console.error('Validation errors:', result.error.issues);
+        return res.status(400).json({
+          message: "Invalid input",
+          errors: result.error.issues.map(i => i.message),
+        });
+      }
+
+      // First verify that the patient exists
+      const [patient] = await db
+        .select()
+        .from(patients)
+        .where(eq(patients.id, result.data.patientId))
+        .limit(1);
+
+      if (!patient) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+
+      const [newBilling] = await db
+        .insert(billings)
+        .values({
+          ...result.data,
+          time: new Date(result.data.time),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      console.log('Created billing:', newBilling);
+      res.status(201).json(newBilling);
+    } catch (error: any) {
+      console.error("Error creating billing:", error);
+      res.status(500).json({
+        message: "Failed to create billing",
+        error: error.message,
+      });
+    }
+  });
+
+  // Get billings for a specific patient
+  app.get("/api/patients/:id/billings", async (req: AuthenticatedRequest, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const patientId = parseInt(req.params.id);
+      const patientBillings = await db
+        .select({
+          id: billings.id,
+          amount: billings.amount,
+          time: billings.time,
+          notes: billings.notes,
+          employeeId: billings.employeeId,
+          employee: {
+            fullName: users.fullName,
+          },
+        })
+        .from(billings)
+        .leftJoin(users, eq(billings.employeeId, users.id))
+        .where(eq(billings.patientId, patientId))
+        .orderBy(desc(billings.time));
+
+      res.json(patientBillings);
+    } catch (error: any) {
+      console.error("Error fetching patient billings:", error);
+      res.status(500).json({
+        message: "Failed to fetch patient billings",
+        error: error.message,
+      });
+    }
+  });
+
+  // Get all billings (with role-based filtering)
+  app.get("/api/billings", async (req: AuthenticatedRequest, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      let query = db
+        .select({
+          id: billings.id,
+          amount: billings.amount,
+          time: billings.time,
+          notes: billings.notes,
+          patientId: billings.patientId,
+          employeeId: billings.employeeId,
+          patient: {
+            id: patients.id,
+            firstName: patients.firstName,
+            lastName: patients.lastName,
+          },
+          employee: {
+            id: users.id,
+            fullName: users.fullName,
+          },
+        })
+        .from(billings)
+        .leftJoin(patients, eq(billings.patientId, patients.id))
+        .leftJoin(users, eq(billings.employeeId, users.id))
+        .orderBy(desc(billings.time));
+
+      // Filter based on user role
+      if (req.user.role === "spitex_employee") {
+        // Employees only see their own billings
+        query = query.where(eq(billings.employeeId, req.user.id));
+      } else if (req.user.role === "spitex_org") {
+        // Organizations see billings for all their employees
+        const employees = await db
+          .select()
+          .from(users)
+          .where(eq(users.organizationId, req.user.organizationId!));
+
+        if (employees.length > 0) {
+          const employeeIds = employees.map(e => e.id);
+          query = query.where(inArray(billings.employeeId, employeeIds));
+        }
+      }
+
+      const allBillings = await query;
+
+      // Format the billing data to include full names
+      const formattedBillings = allBillings.map(billing => ({
+        id: billing.id,
+        amount: billing.amount,
+        time: billing.time,
+        notes: billing.notes,
+        patientId: billing.patientId,
+        employeeId: billing.employeeId,
+        patientName: billing.patient ? `${billing.patient.firstName} ${billing.patient.lastName}` : 'Unknown Patient',
+        employeeName: billing.employee ? billing.employee.fullName : 'Unknown Employee'
+      }));
+
+      res.json(formattedBillings);
+    } catch (error: any) {
+      console.error("Error fetching billings:", error);
+      res.status(500).json({
+        message: "Failed to fetch billings",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/billings", async (req: AuthenticatedRequest, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      console.log('Received billing data:', req.body);
+
+      const result = insertBillingSchema.safeParse({
+        ...req.body,
+        employeeId: req.user.id,
+      });
+
+      if (!result.success) {
+        console.error('Validation errors:', result.error.issues);
+        return res.status(400).json({
+          message: "Invalid input",
+          errors: result.error.issues.map(i => i.message),
+        });
+      }
+
+      // First verify that the patient exists
+      const [patient] = await db
+        .select()
+        .from(patients)
+        .where(eq(patients.id, result.data.patientId))
+        .limit(1);
+
+      if (!patient) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+
+      const [newBilling] = await db
+        .insert(billings)
+        .values({
+          ...result.data,
+          time: new Date(result.data.time),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      console.log('Created billing:', newBilling);
+      res.status(201).json(newBilling);
+    } catch (error: any) {
+      console.error("Error creating billing:", error);
+      res.status(500).json({
+        message: "Failed to create billing",
+        error: error.message,
+      });
+    }
+  });
+
+  // Get billings for a specific patient
+  app.get("/api/patients/:id/billings", async (req: AuthenticatedRequest, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const patientId = parseInt(req.params.id);
+      const patientBillings = await db
+        .select({
+          id: billings.id,
+          amount: billings.amount,
+          time: billings.time,
+          notes: billings.notes,
+          employeeId: billings.employeeId,
+          employee: {
+            fullName: users.fullName,
+          },
+        })
+        .from(billings)
+        .leftJoin(users, eq(billings.employeeId, users.id))
+        .where(eq(billings.patientId, patientId))
+        .orderBy(desc(billings.time));
+
+      res.json(patientBillings);
+    } catch (error: any) {
+      console.error("Error fetching patient billings:", error);
+      res.status(500).json({
+        message: "Failed to fetch patient billings",
         error: error.message,
       });
     }
