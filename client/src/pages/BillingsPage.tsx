@@ -12,10 +12,16 @@ import { Plus } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { columns } from "@/components/billings/columns";
 import { BillingForm } from "@/components/billings/BillingForm";
+import { format } from "date-fns";
 import type { Billing } from "@db/schema";
 
+interface BillingResponse extends Billing {
+  patientName: string;
+  employeeName: string;
+}
+
 export default function BillingsPage() {
-  const { data: billings, isLoading } = useQuery<Billing[]>({
+  const { data: billings, isLoading } = useQuery<BillingResponse[]>({
     queryKey: ["/api/billings"],
   });
 
@@ -25,16 +31,18 @@ export default function BillingsPage() {
       style: 'currency',
       currency: 'CHF'
     }).format(Number(billing.amount)),
-    formattedTime: new Date(billing.time).toLocaleString('de-CH', {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    }),
+    formattedTime: format(new Date(billing.time), 'dd.MM.yyyy HH:mm'),
   })) ?? [];
 
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Billings</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Billings</h1>
+          <p className="text-muted-foreground mt-1">
+            View and manage all billing records
+          </p>
+        </div>
         <Dialog>
           <DialogTrigger asChild>
             <Button>
@@ -42,7 +50,7 @@ export default function BillingsPage() {
               Add Billing
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Add New Billing</DialogTitle>
             </DialogHeader>

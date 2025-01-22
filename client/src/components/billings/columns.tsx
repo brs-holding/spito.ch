@@ -1,17 +1,31 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { Billing } from "@db/schema";
 import { DataTableColumnHeader } from "../ui/data-table-column-header";
+import { format } from "date-fns";
 
-export const columns: ColumnDef<Billing & { formattedAmount: string; formattedTime: string }>[] = [
+type BillingData = {
+  id: number;
+  amount: string;
+  time: string;
+  notes: string | null;
+  patientId: number;
+  employeeId: number;
+  patientName: string;
+  employeeName: string;
+  formattedAmount: string;
+  formattedTime: string;
+};
+
+export const columns: ColumnDef<BillingData>[] = [
   {
-    accessorKey: "patient.firstName",
+    accessorKey: "patientName",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Patient" />
     ),
-    cell: ({ row }) => (
-      <div>
-        {row.original.patient?.firstName} {row.original.patient?.lastName}
-      </div>
+  },
+  {
+    accessorKey: "employeeName",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Employee" />
     ),
   },
   {
@@ -27,15 +41,10 @@ export const columns: ColumnDef<Billing & { formattedAmount: string; formattedTi
     ),
   },
   {
-    accessorKey: "employee.fullName",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Employee" />
-    ),
-  },
-  {
     accessorKey: "notes",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Notes" />
     ),
+    cell: ({ row }) => row.getValue("notes") || "-",
   },
 ];
