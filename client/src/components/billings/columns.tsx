@@ -1,6 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Billing } from "@db/schema";
-import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { DataTableColumnHeader } from "../ui/data-table-column-header";
 
 export const columns: ColumnDef<Billing & { formattedAmount: string; formattedTime: string }>[] = [
   {

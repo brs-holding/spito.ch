@@ -789,7 +789,7 @@ export type InsertJournalEntry = typeof journalEntries.$inferInsert;
 
 export const billings = pgTable("billings", {
   id: serial("id").primaryKey(),
-  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  patientId:integer("patient_id").references(() => patients.id).notNull(),
   employeeId: integer("employee_id").references(() => users.id).notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   time: timestamp("time").notNull(),

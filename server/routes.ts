@@ -37,7 +37,7 @@ import {
   billings,
   insertBillingSchema,
 } from "@db/schema";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, inArray } from "drizzle-orm";
 
 // Get current directory in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -971,7 +971,7 @@ export function registerRoutes(app: Express): Server {
     const medicationDetails = await db
       .select()
       .from(medications)
-      .where(eq(medications.id, medicationIds[0]));
+      .where(inArray(medications.id, medicationIds));
 
     res.json({ schedules, medications: medicationDetails });
   });
@@ -1000,7 +1000,8 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/patient/medication-adherence/:scheduleId", async (req: AuthenticatedRequest, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
-    }    try {
+    }
+    try {
       const scheduleId = parseInt(req.params.scheduleId);
       const adherenceRecords = await db
         .select()
@@ -1814,45 +1815,27 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      let query = db.select({
-        id: billings.id,
-        amount: billings.amount,
-        time: billings.time,
-        notes: billings.notes,
-        patientId: billings.patientId,
-        employeeId: billings.employeeId,
-        createdAt: billings.createdAt,
-        patient: {
-          firstName: patients.firstName,
-          lastName: patients.lastName,
-        },
-        employee: {
-          fullName: users.fullName,
-        },
-      })
-      .from(billings)
-      .leftJoin(patients, eq(billings.patientId, patients.id))
-      .leftJoin(users, eq(billings.employeeId, users.id))
-      .orderBy(desc(billings.createdAt));
+      let query = db.select().from(billings);
 
-      if (req.user.role === "spitex_employee") {
-        // Employees only see their own billings
-        query = query.where(eq(billings.employeeId, req.user.id));
-      } else if (req.user.role === "spitex_org") {
-        // Organizations see billings for all their employees
+      // Filter based on user role
+      if (req.user.role === "spitex_org") {
+        // Organization admin can see all billings within their org
         const employees = await db
           .select()
           .from(users)
           .where(eq(users.organizationId, req.user.organizationId!));
 
-        const employeeIds = employees.map(e => e.id);
-        if (employeeIds.length > 0) {
-          query = query.where(sql`${billings.employeeId} IN (${employeeIds.join(',')})`);
+        if (employees.length > 0) {
+          const employeeIds = employees.map(e => e.id);
+          query = query.where(inArray(billings.employeeId, employeeIds));
         }
+      } else if (req.user.role === "spitex_employee") {
+        // Employees can only see their own billings
+        query = query.where(eq(billings.employeeId, req.user.id));
       }
 
-      const results = await query;
-      res.json(results);
+      const allBillings = await query.orderBy(desc(billings.time));
+      res.json(allBillings);
     } catch (error: any) {
       console.error("Error fetching billings:", error);
       res.status(500).json({
@@ -1880,16 +1863,15 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      const [billing] = await db
+      const [newBilling] = await db
         .insert(billings)
         .values({
           ...result.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          time: new Date(result.data.time),
         })
         .returning();
 
-      res.status(201).json(billing);
+      res.json(newBilling);
     } catch (error: any) {
       console.error("Error creating billing:", error);
       res.status(500).json({
