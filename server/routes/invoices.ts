@@ -23,27 +23,39 @@ export async function createInvoice(req: Request, res: Response) {
 
     const { startDate, endDate, patientId, ...rest } = result.data;
 
+    // Ensure patientId is a number
+    const parsedPatientId = Number(patientId);
+    if (isNaN(parsedPatientId)) {
+      return res.status(400).json({ message: "Invalid patient ID" });
+    }
+
     // Generate unique invoice number (INVOICE-YYYYMMDD-XXXXX)
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
     const random = Math.floor(Math.random() * 100000).toString().padStart(5, "0");
     const invoiceNumber = `INVOICE-${dateStr}-${random}`;
 
-    // Create invoice
+    // Create invoice with properly typed data
     const [invoice] = await db.insert(invoices)
       .values({
         ...rest,
         invoiceNumber,
-        patientId,
+        patientId: parsedPatientId,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
+        status: "draft",
+        createdAt: new Date(),
+        updatedAt: new Date()
       })
       .returning();
 
     return res.status(201).json(invoice);
   } catch (error: any) {
     console.error("Failed to create invoice:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ 
+      message: "Failed to create invoice", 
+      error: error.message 
+    });
   }
 }
 
@@ -51,11 +63,14 @@ export async function listInvoices(req: Request, res: Response) {
   try {
     const { patientId, status } = req.query;
     let query = db.select().from(invoices);
-    
+
     if (patientId) {
-      query = query.where(eq(invoices.patientId, Number(patientId)));
+      const parsedPatientId = Number(patientId);
+      if (!isNaN(parsedPatientId)) {
+        query = query.where(eq(invoices.patientId, parsedPatientId));
+      }
     }
-    
+
     if (status) {
       query = query.where(eq(invoices.status, String(status)));
     }
@@ -64,16 +79,25 @@ export async function listInvoices(req: Request, res: Response) {
     return res.json(results);
   } catch (error: any) {
     console.error("Failed to list invoices:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ 
+      message: "Failed to fetch invoices", 
+      error: error.message 
+    });
   }
 }
 
 export async function getInvoiceDetails(req: Request, res: Response) {
   try {
     const { id } = req.params;
+    const invoiceId = Number(id);
+
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ message: "Invalid invoice ID" });
+    }
+
     const [invoice] = await db.select()
       .from(invoices)
-      .where(eq(invoices.id, Number(id)))
+      .where(eq(invoices.id, invoiceId))
       .limit(1);
 
     if (!invoice) {
@@ -96,13 +120,18 @@ export async function updateInvoiceStatus(req: Request, res: Response) {
     const { id } = req.params;
     const { status } = req.body;
 
+    const invoiceId = Number(id);
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ message: "Invalid invoice ID" });
+    }
+
     if (!["draft", "pending", "paid", "overdue", "cancelled"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
     const [invoice] = await db.update(invoices)
       .set({ status, updatedAt: new Date() })
-      .where(eq(invoices.id, Number(id)))
+      .where(eq(invoices.id, invoiceId))
       .returning();
 
     return res.json(invoice);
@@ -115,8 +144,14 @@ export async function updateInvoiceStatus(req: Request, res: Response) {
 export async function addInvoiceItem(req: Request, res: Response) {
   try {
     const { id } = req.params;
+    const invoiceId = Number(id);
+
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ message: "Invalid invoice ID" });
+    }
+
     const result = insertInvoiceItemSchema.safeParse(req.body);
-    
+
     if (!result.success) {
       return res.status(400).json({ 
         message: "Invalid input", 
@@ -126,7 +161,7 @@ export async function addInvoiceItem(req: Request, res: Response) {
 
     const [invoice] = await db.select()
       .from(invoices)
-      .where(eq(invoices.id, Number(id)))
+      .where(eq(invoices.id, invoiceId))
       .limit(1);
 
     if (!invoice) {
@@ -134,7 +169,7 @@ export async function addInvoiceItem(req: Request, res: Response) {
     }
 
     const [item] = await db.insert(invoiceItems)
-      .values({ ...result.data, invoiceId: invoice.id })
+      .values({ ...result.data, invoiceId })
       .returning();
 
     return res.status(201).json(item);
