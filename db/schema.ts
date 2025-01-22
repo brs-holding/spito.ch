@@ -239,10 +239,57 @@ export const serviceLogs = pgTable("service_logs", {
   billingAmount: decimal("billing_amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
   status: text("status", {
-    enum: ["pending", "completed", "cancelled"]
+    enum: ["pending", "billed", "paid", "cancelled"]
   }).notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  recipientType: text("recipient_type", { enum: ["insurance", "patient"] }).notNull(),
+  insuranceId: integer("insurance_id").references(() => insuranceDetails.id),
+  status: text("status", { 
+    enum: ["draft", "pending", "paid", "overdue", "cancelled"] 
+  }).notNull().default("draft"),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  selbstbehaltAmount: decimal("selbstbehalt_amount", { precision: 10, scale: 2 }),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  notes: text("notes"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const invoiceItems = pgTable("invoice_items", {
+  id: serial("id").primaryKey(),
+  invoiceId: integer("invoice_id").references(() => invoices.id).notNull(),
+  serviceLogId: integer("service_log_id").references(() => serviceLogs.id).notNull(),
+  description: text("description").notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  billingCode: text("billing_code").notNull(),
+  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  invoiceId: integer("invoice_id").references(() => invoices.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: text("payment_method", {
+    enum: ["bank_transfer", "credit_card", "cash", "other"]
+  }).notNull(),
+  paymentDate: timestamp("payment_date").notNull(),
+  referenceNumber: text("reference_number"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const taskAssignments = pgTable("task_assignments", {
@@ -468,6 +515,36 @@ export const taskHistoryRelations = relations(taskHistory, ({ one }) => ({
   }),
 }));
 
+export const invoiceRelations = relations(invoices, ({ one, many }) => ({
+  patient: one(patients, {
+    fields: [invoices.patientId],
+    references: [patients.id],
+  }),
+  insurance: one(insuranceDetails, {
+    fields: [invoices.insuranceId],
+    references: [insuranceDetails.id],
+  }),
+  items: many(invoiceItems),
+  payments: many(payments),
+}));
+
+export const invoiceItemRelations = relations(invoiceItems, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceItems.invoiceId],
+    references: [invoices.id],
+  }),
+  serviceLog: one(serviceLogs, {
+    fields: [invoiceItems.serviceLogId],
+    references: [serviceLogs.id],
+  }),
+}));
+
+export const paymentRelations = relations(payments, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [payments.invoiceId],
+    references: [invoices.id],
+  }),
+}));
 
 export const insertProviderScheduleSchema = createInsertSchema(providerSchedules);
 export const selectProviderScheduleSchema = createSelectSchema(providerSchedules);
@@ -578,6 +655,24 @@ export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type TaskAssignment = typeof taskAssignments.$inferSelect;
 export type InsertTaskAssignment = typeof taskAssignments.$inferInsert;
 
+export const insertInvoiceSchema = createInsertSchema(invoices);
+export const selectInvoiceSchema = createSelectSchema(invoices);
+
+export const insertInvoiceItemSchema = createInsertSchema(invoiceItems);
+export const selectInvoiceItemSchema = createSelectSchema(invoiceItems);
+
+export const insertPaymentSchema = createInsertSchema(payments);
+export const selectPaymentSchema = createSelectSchema(payments);
+
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = typeof invoices.$inferInsert;
+
+export type InvoiceItem = typeof invoiceItems.$inferSelect;
+export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = typeof payments.$inferInsert;
+
 export const insertTaskCommentSchema = createInsertSchema(taskComments, {
   content: z.string().min(1, "Comment cannot be empty"),
 });
@@ -591,6 +686,7 @@ export type TaskComment = typeof taskComments.$inferSelect;
 export type InsertTaskComment = typeof taskComments.$inferInsert;
 export type TaskHistory = typeof taskHistory.$inferSelect;
 export type InsertTaskHistory = typeof taskHistory.$inferInsert;
+
 
 export const calendarEvents = pgTable("calendar_events", {
   id: serial("id").primaryKey(),

@@ -1,72 +1,55 @@
 import { Request, Response } from "express";
 import { db } from "@db";
-import { eq, and, desc } from "drizzle-orm";
-import { invoices, patients, type Invoice } from "@db/schema";
+import { eq } from "drizzle-orm";
+import { 
+  invoices, 
+  invoiceItems, 
+  serviceLogs, 
+  insertInvoiceSchema,
+  insertInvoiceItemSchema,
+  type InsertInvoice,
+  type InsertInvoiceItem 
+} from "@db/schema";
 
 export async function createInvoice(req: Request, res: Response) {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    const {
-      patientId,
-      recipientType,
-      totalAmount,
-      startDate,
-      endDate,
-      dueDate,
-      metadata,
-      purpose
-    } = req.body;
-
-    // Validate required fields
-    if (!patientId || !totalAmount || !startDate || !endDate || !dueDate) {
-      return res.status(400).json({
-        message: "Missing required fields",
-        required: ["patientId", "totalAmount", "startDate", "endDate", "dueDate"]
+    const result = insertInvoiceSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ 
+        message: "Invalid input", 
+        errors: result.error.errors 
       });
     }
 
-    // Verify patient exists
-    const [patient] = await db
-      .select()
-      .from(patients)
-      .where(eq(patients.id, patientId))
-      .limit(1);
+    const { startDate, endDate, patientId, ...rest } = result.data;
 
-    if (!patient) {
-      return res.status(404).json({ message: "Patient not found" });
+    // Ensure patientId is a number
+    const parsedPatientId = Number(patientId);
+    if (isNaN(parsedPatientId)) {
+      return res.status(400).json({ message: "Invalid patient ID" });
     }
 
-    // Generate unique invoice number
+    // Generate unique invoice number (INVOICE-YYYYMMDD-XXXXX)
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
     const random = Math.floor(Math.random() * 100000).toString().padStart(5, "0");
     const invoiceNumber = `INVOICE-${dateStr}-${random}`;
 
-    // Create invoice
-    const [newInvoice] = await db.insert(invoices)
+    // Create invoice with properly typed data
+    const [invoice] = await db.insert(invoices)
       .values({
+        ...rest,
         invoiceNumber,
-        patientId,
-        recipientType: recipientType || "insurance",
-        totalAmount: totalAmount.toString(),
+        patientId: parsedPatientId,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        dueDate: new Date(dueDate),
         status: "draft",
-        metadata: {
-          purpose,
-          createdBy: req.user.fullName,
-          createdAt: new Date().toISOString(),
-        },
         createdAt: new Date(),
         updatedAt: new Date()
       })
       .returning();
 
-    return res.status(201).json(newInvoice);
+    return res.status(201).json(invoice);
   } catch (error: any) {
     console.error("Failed to create invoice:", error);
     return res.status(500).json({ 
@@ -78,110 +61,26 @@ export async function createInvoice(req: Request, res: Response) {
 
 export async function listInvoices(req: Request, res: Response) {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
+    const { patientId, status } = req.query;
+    let query = db.select().from(invoices);
+
+    if (patientId) {
+      const parsedPatientId = Number(patientId);
+      if (!isNaN(parsedPatientId)) {
+        query = query.where(eq(invoices.patientId, parsedPatientId));
+      }
     }
 
-    // Start with a base query
-    const query = db.select()
-      .from(invoices)
-      .orderBy(desc(invoices.createdAt));
+    if (status) {
+      query = query.where(eq(invoices.status, String(status)));
+    }
 
-    // Get all invoices
     const results = await query;
     return res.json(results);
   } catch (error: any) {
     console.error("Failed to list invoices:", error);
     return res.status(500).json({ 
       message: "Failed to fetch invoices", 
-      error: error.message 
-    });
-  }
-}
-
-export async function getInvoice(req: Request, res: Response) {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    const invoiceId = Number(req.params.id);
-    if (isNaN(invoiceId)) {
-      return res.status(400).json({ message: "Invalid invoice ID" });
-    }
-
-    const [invoice] = await db
-      .select()
-      .from(invoices)
-      .where(eq(invoices.id, invoiceId))
-      .limit(1);
-
-    if (!invoice) {
-      return res.status(404).json({ message: "Invoice not found" });
-    }
-
-    return res.json(invoice);
-  } catch (error: any) {
-    console.error("Failed to get invoice:", error);
-    return res.status(500).json({ 
-      message: "Failed to fetch invoice", 
-      error: error.message 
-    });
-  }
-}
-
-export async function updateInvoiceStatus(req: Request, res: Response) {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    const invoiceId = Number(id);
-    if (isNaN(invoiceId)) {
-      return res.status(400).json({ message: "Invalid invoice ID" });
-    }
-
-    if (!["draft", "pending", "paid", "overdue", "cancelled"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    const [invoice] = await db.update(invoices)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(invoices.id, invoiceId))
-      .returning();
-
-    if (!invoice) {
-      return res.status(404).json({ message: "Invoice not found" });
-    }
-
-    return res.json(invoice);
-  } catch (error: any) {
-    console.error("Failed to update invoice status:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-}
-
-export async function getPatientInvoices(req: Request, res: Response) {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    const patientId = Number(req.params.patientId);
-    if (isNaN(patientId)) {
-      return res.status(400).json({ message: "Invalid patient ID" });
-    }
-
-    const patientInvoices = await db
-      .select()
-      .from(invoices)
-      .where(eq(invoices.patientId, patientId))
-      .orderBy(desc(invoices.createdAt));
-
-    return res.json(patientInvoices);
-  } catch (error: any) {
-    console.error("Failed to get patient invoices:", error);
-    return res.status(500).json({ 
-      message: "Failed to fetch patient invoices", 
       error: error.message 
     });
   }
@@ -212,6 +111,32 @@ export async function getInvoiceDetails(req: Request, res: Response) {
     return res.json({ ...invoice, items });
   } catch (error: any) {
     console.error("Failed to get invoice details:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+export async function updateInvoiceStatus(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const invoiceId = Number(id);
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ message: "Invalid invoice ID" });
+    }
+
+    if (!["draft", "pending", "paid", "overdue", "cancelled"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const [invoice] = await db.update(invoices)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(invoices.id, invoiceId))
+      .returning();
+
+    return res.json(invoice);
+  } catch (error: any) {
+    console.error("Failed to update invoice status:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
