@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
@@ -28,7 +27,7 @@ import { useUser } from "@/hooks/use-user";
 export function BillingForm() {
   const { toast } = useToast();
   const { user } = useUser();
-  
+
   const form = useForm<InsertBilling>({
     resolver: zodResolver(insertBillingSchema),
     defaultValues: {
@@ -71,7 +70,7 @@ export function BillingForm() {
 
       // Refresh billing data
       await queryClient.invalidateQueries({ queryKey: ["/api/billings"] });
-      
+
       // Close dialog if needed
       const dialogClose = document.querySelector('[data-dialog-close]');
       if (dialogClose instanceof HTMLElement) {
@@ -116,7 +115,6 @@ export function BillingForm() {
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="amount"
