@@ -1257,7 +1257,7 @@ export function registerRoutes(app: Express): Server {
         
         const patientIds = orgPatients.map(p => p.id);
         if (patientIds.length > 0) {
-          query = query.where(sql`${invoices.patientId} = ANY(${patientIds})`);
+          query = query.where(sql`${invoices.patientId} IN (${patientIds.join(',')})`);
         }
       } else if (req.user.role === "patient") {
         // Patients only see their invoices
