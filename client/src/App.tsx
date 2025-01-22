@@ -13,6 +13,7 @@ import AppointmentsPage from "./pages/AppointmentsPage";
 import SchedulePage from "./pages/SchedulePage";
 import TasksPage from "./pages/TasksPage";
 import InvoicesPage from "./pages/InvoicesPage";
+import BillingsPage from "./pages/BillingsPage";
 import PatientInvoicesPage from "./pages/PatientInvoicesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial";
@@ -72,6 +73,7 @@ function App() {
           <Route path="/appointments" component={AppointmentsPage} />
           <Route path="/schedule" component={SchedulePage} />
           <Route path="/tasks" component={TasksPage} />
+          <Route path="/billing" component={BillingsPage} />
           <Route path="/invoices">
             {isPatient ? <PatientInvoicesPage /> : <InvoicesPage />}
           </Route>

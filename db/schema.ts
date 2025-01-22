@@ -387,6 +387,7 @@ export const patientRelations = relations(patients, ({ one, many }) => ({
   medicationSchedules: many(medicationSchedules),
   appointments: many(appointments),
   journalEntries: many(journalEntries),
+  billings: many(billings),
 }));
 
 export const carePlanRelations = relations(carePlans, ({ one, many }) => ({
@@ -785,3 +786,37 @@ export const insertJournalEntrySchema = createInsertSchema(journalEntries);
 export const selectJournalEntrySchema = createSelectSchema(journalEntries);
 export type JournalEntry = typeof journalEntries.$inferSelect;
 export type InsertJournalEntry = typeof journalEntries.$inferInsert;
+
+export const billings = pgTable("billings", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  employeeId: integer("employee_id").references(() => users.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  time: timestamp("time").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const billingRelations = relations(billings, ({ one }) => ({
+  patient: one(patients, {
+    fields: [billings.patientId],
+    references: [patients.id],
+  }),
+  employee: one(users, {
+    fields: [billings.employeeId],
+    references: [users.id],
+  }),
+}));
+
+export const insertBillingSchema = createInsertSchema(billings, {
+  amount: z.number().min(0, "Amount must be positive"),
+  time: z.string().min(1, "Time is required"),
+  notes: z.string().optional(),
+  patientId: z.number().min(1, "Patient is required"),
+  employeeId: z.number().min(1, "Employee is required"),
+});
+
+export const selectBillingSchema = createSelectSchema(billings);
+export type Billing = typeof billings.$inferSelect;
+export type InsertBilling = z.infer<typeof insertBillingSchema>;

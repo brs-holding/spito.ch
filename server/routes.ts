@@ -34,6 +34,8 @@ import {
   calendarEventAttendees,
   insertCalendarEventSchema,
   insertUserSchema,
+  billings,
+  insertBillingSchema,
 } from "@db/schema";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 
@@ -1800,6 +1802,132 @@ export function registerRoutes(app: Express): Server {
       console.error("Error creating journal entry:", error);
       res.status(500).json({
         message: "Failed to create journal entry",
+        error: error.message,
+      });
+    }
+  });
+
+  // Add billing routes
+  app.get("/api/billings", async (req: AuthenticatedRequest, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      let query = db.select({
+        id: billings.id,
+        amount: billings.amount,
+        time: billings.time,
+        notes: billings.notes,
+        patientId: billings.patientId,
+        employeeId: billings.employeeId,
+        createdAt: billings.createdAt,
+        patient: {
+          firstName: patients.firstName,
+          lastName: patients.lastName,
+        },
+        employee: {
+          fullName: users.fullName,
+        },
+      })
+      .from(billings)
+      .leftJoin(patients, eq(billings.patientId, patients.id))
+      .leftJoin(users, eq(billings.employeeId, users.id))
+      .orderBy(desc(billings.createdAt));
+
+      if (req.user.role === "spitex_employee") {
+        // Employees only see their own billings
+        query = query.where(eq(billings.employeeId, req.user.id));
+      } else if (req.user.role === "spitex_org") {
+        // Organizations see billings for all their employees
+        const employees = await db
+          .select()
+          .from(users)
+          .where(eq(users.organizationId, req.user.organizationId!));
+
+        const employeeIds = employees.map(e => e.id);
+        if (employeeIds.length > 0) {
+          query = query.where(sql`${billings.employeeId} IN (${employeeIds.join(',')})`);
+        }
+      }
+
+      const results = await query;
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error fetching billings:", error);
+      res.status(500).json({
+        message: "Failed to fetch billings",
+        error: error.message,
+      });
+    }
+  });
+
+  app.post("/api/billings", async (req: AuthenticatedRequest, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const result = insertBillingSchema.safeParse({
+        ...req.body,
+        employeeId: req.user.id,
+      });
+
+      if (!result.success) {
+        return res.status(400).json({
+          message: "Invalid input",
+          errors: result.error.issues,
+        });
+      }
+
+      const [billing] = await db
+        .insert(billings)
+        .values({
+          ...result.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      res.status(201).json(billing);
+    } catch (error: any) {
+      console.error("Error creating billing:", error);
+      res.status(500).json({
+        message: "Failed to create billing",
+        error: error.message,
+      });
+    }
+  });
+
+  app.get("/api/patients/:id/billings", async (req: AuthenticatedRequest, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const patientId = parseInt(req.params.id);
+      const results = await db
+        .select({
+          id: billings.id,
+          amount: billings.amount,
+          time: billings.time,
+          notes: billings.notes,
+          employeeId: billings.employeeId,
+          createdAt: billings.createdAt,
+          employee: {
+            fullName: users.fullName,
+          },
+        })
+        .from(billings)
+        .leftJoin(users, eq(billings.employeeId, users.id))
+        .where(eq(billings.patientId, patientId))
+        .orderBy(desc(billings.createdAt));
+
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error fetching patient billings:", error);
+      res.status(500).json({
+        message: "Failed to fetch patient billings",
         error: error.message,
       });
     }
