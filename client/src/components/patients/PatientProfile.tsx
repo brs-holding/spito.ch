@@ -7,14 +7,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Patient, InsuranceDetails, PatientDocument, VisitLog } from "@db/schema";
+import { Patient } from "@db/schema";
 import { 
   User, 
-  Phone,
-  Mail,
-  Home,
+  Phone, 
+  Mail, 
+  Home, 
   Shield, 
-  FileText,
+  FileText, 
   Calendar,
   ClipboardList,
 } from "lucide-react";
@@ -73,17 +73,25 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
           <User className="h-4 w-4 mr-2" />
           Basisdaten
         </TabsTrigger>
-        <TabsTrigger value="insurance">
-          <Shield className="h-4 w-4 mr-2" />
-          Versicherung
+        <TabsTrigger value="medical">
+          <ClipboardList className="h-4 w-4 mr-2" />
+          Medizinische Daten
+        </TabsTrigger>
+        <TabsTrigger value="appointments">
+          <Calendar className="h-4 w-4 mr-2" />
+          Termine
         </TabsTrigger>
         <TabsTrigger value="documents">
           <FileText className="h-4 w-4 mr-2" />
           Dokumente
         </TabsTrigger>
-        <TabsTrigger value="visits">
+        <TabsTrigger value="insurance">
+          <Shield className="h-4 w-4 mr-2" />
+          Versicherungen
+        </TabsTrigger>
+        <TabsTrigger value="journal">
           <ClipboardList className="h-4 w-4 mr-2" />
-          Besuchsprotokolle
+          Journal
         </TabsTrigger>
       </TabsList>
 
@@ -133,6 +141,61 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="medical">
+        <Card>
+          <CardHeader>
+            <CardTitle>Medizinische Informationen</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Medizinische Vorgeschichte</label>
+                <Input
+                  value={patient?.medicalHistory || ""}
+                  onChange={(e) =>
+                    updatePatient.mutate({ medicalHistory: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="appointments">
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>Termine</CardTitle>
+              <Button>
+                <Calendar className="h-4 w-4 mr-2" />
+                Termin hinzufügen
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div>Keine Termine vorhanden</div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="documents">
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>Dokumente</CardTitle>
+              <Button>
+                <FileText className="h-4 w-4 mr-2" />
+                Dokument hochladen
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div>Keine Dokumente vorhanden</div>
           </CardContent>
         </Card>
       </TabsContent>
@@ -203,77 +266,19 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
         </Card>
       </TabsContent>
 
-      <TabsContent value="documents">
+      <TabsContent value="journal">
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle>Dokumente</CardTitle>
+              <CardTitle>Journal</CardTitle>
               <Button>
                 <FileText className="h-4 w-4 mr-2" />
-                Dokument hochladen
+                Eintrag hinzufügen
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            {!patient?.documents?.length ? (
-              <div>Keine Dokumente vorhanden</div>
-            ) : (
-              <div className="space-y-4">
-                {patient.documents?.map((doc) => (
-                  <div key={doc.id} className="flex items-center gap-4 p-4 border rounded-lg">
-                    <FileText className="h-6 w-6 text-muted-foreground" />
-                    <div>
-                      <h3 className="font-medium">{doc.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Hochgeladen am {new Date(doc.uploadedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="visits">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Besuchsprotokolle</CardTitle>
-              <Button>
-                <Calendar className="h-4 w-4 mr-2" />
-                Besuch erfassen
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {!patient?.visits?.length ? (
-              <div>Keine Besuchsprotokolle vorhanden</div>
-            ) : (
-              <div className="space-y-4">
-                {patient.visits?.map((visit) => (
-                  <div key={visit.id} className="border-b py-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium">
-                          {new Date(visit.startTime).toLocaleDateString()}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {visit.notes}
-                        </p>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(visit.startTime).toLocaleTimeString()} -{" "}
-                        {visit.endTime
-                          ? new Date(visit.endTime).toLocaleTimeString()
-                          : "Laufend"}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div>Keine Journal-Einträge vorhanden</div>
           </CardContent>
         </Card>
       </TabsContent>
