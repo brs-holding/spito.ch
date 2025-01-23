@@ -12,6 +12,26 @@ router.get("/", async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    const baseFields = {
+      id: patients.id,
+      firstName: patients.firstName,
+      lastName: patients.lastName,
+      dateOfBirth: patients.dateOfBirth,
+      gender: patients.gender,
+      email: patients.email,
+      phone: patients.phone,
+      address: patients.address,
+      emergencyContact: patients.emergencyContact,
+      createdAt: patients.createdAt,
+      organizationId: patients.organizationId,
+    };
+
+    let query = db.select(baseFields).from(patients);
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     let query = db.select().from(patients);
 
     // Filter based on user role and organization
