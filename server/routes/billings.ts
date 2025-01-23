@@ -20,7 +20,7 @@ router.get("/", async (req: Request, res: Response) => {
       notes: billings.notes,
       patientId: billings.patientId,
       employeeId: billings.employeeId,
-      patientName: db.sql<string>`CONCAT(${patients.firstName}, ' ', ${patients.lastName})`,
+      patientName: patients.firstName,
       employeeName: users.username,
     })
     .from(billings)
