@@ -27,12 +27,6 @@ router.get("/", async (req: Request, res: Response) => {
     };
 
     let query = db.select(baseFields).from(patients);
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    let query = db.select().from(patients);
 
     // Filter based on user role and organization
     switch (req.user.role) {
