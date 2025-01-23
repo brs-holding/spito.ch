@@ -14,6 +14,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     const newPatient = {
       ...req.body,
+      dateOfBirth: new Date(req.body.dateOfBirth),
       organizationId: req.user.organizationId,
       createdAt: new Date(),
     };
