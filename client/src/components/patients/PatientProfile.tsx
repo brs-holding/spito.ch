@@ -10,11 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Patient, InsuranceDetails, PatientDocument, VisitLog } from "@db/schema";
 import { 
   User, 
-  FilePlus, 
-  CalendarPlus, 
+  Phone,
+  Mail,
+  Home,
   Shield, 
-  ClipboardList,
   FileText,
+  Calendar,
+  ClipboardList,
 } from "lucide-react";
 
 interface PatientProfileProps {
@@ -27,18 +29,6 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
 
   const { data: patient, isLoading: isLoadingPatient } = useQuery<Patient>({
     queryKey: [`/api/patients/${patientId}`],
-  });
-
-  const { data: insurance, isLoading: isLoadingInsurance } = useQuery<InsuranceDetails[]>({
-    queryKey: [`/api/patients/${patientId}/insurance`],
-  });
-
-  const { data: documents, isLoading: isLoadingDocuments } = useQuery<PatientDocument[]>({
-    queryKey: [`/api/patients/${patientId}/documents`],
-  });
-
-  const { data: visits, isLoading: isLoadingVisits } = useQuery<VisitLog[]>({
-    queryKey: [`/api/patients/${patientId}/visits`],
   });
 
   const updatePatient = useMutation({
@@ -59,21 +49,21 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/patients/${patientId}`] });
       toast({
-        title: "Success",
-        description: "Patient information updated successfully",
+        title: "Erfolg",
+        description: "Patientendaten erfolgreich aktualisiert",
       });
     },
     onError: (error: Error) => {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Fehler",
         description: error.message,
       });
     },
   });
 
   if (isLoadingPatient) {
-    return <div>Loading patient information...</div>;
+    return <div>Lade Patientendaten...</div>;
   }
 
   return (
@@ -81,32 +71,31 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
       <TabsList>
         <TabsTrigger value="basic">
           <User className="h-4 w-4 mr-2" />
-          Basic Information
+          Basisdaten
         </TabsTrigger>
         <TabsTrigger value="insurance">
           <Shield className="h-4 w-4 mr-2" />
-          Insurance
+          Versicherung
         </TabsTrigger>
         <TabsTrigger value="documents">
           <FileText className="h-4 w-4 mr-2" />
-          Documents
+          Dokumente
         </TabsTrigger>
         <TabsTrigger value="visits">
           <ClipboardList className="h-4 w-4 mr-2" />
-          Visit Logs
+          Besuchsprotokolle
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value="basic">
         <Card>
           <CardHeader>
-            <CardTitle>Patient Information</CardTitle>
+            <CardTitle>Patienteninformationen</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Basic information form will go here */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">First Name</label>
+                <label className="text-sm font-medium">Vorname</label>
                 <Input
                   value={patient?.firstName}
                   onChange={(e) =>
@@ -115,7 +104,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Last Name</label>
+                <label className="text-sm font-medium">Nachname</label>
                 <Input
                   value={patient?.lastName}
                   onChange={(e) =>
@@ -123,7 +112,26 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
                   }
                 />
               </div>
-              {/* Add more fields as needed */}
+              <div>
+                <label className="text-sm font-medium">E-Mail</label>
+                <Input
+                  value={patient?.email}
+                  type="email"
+                  onChange={(e) =>
+                    updatePatient.mutate({ email: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Telefon</label>
+                <Input
+                  value={patient?.phone}
+                  type="tel"
+                  onChange={(e) =>
+                    updatePatient.mutate({ phone: e.target.value })
+                  }
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -132,31 +140,65 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
       <TabsContent value="insurance">
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Insurance Information</CardTitle>
-              <Button>
-                <Shield className="h-4 w-4 mr-2" />
-                Add Insurance
-              </Button>
-            </div>
+            <CardTitle>Versicherungsinformationen</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingInsurance ? (
-              <div>Loading insurance information...</div>
-            ) : insurance?.length === 0 ? (
-              <div>No insurance information found</div>
-            ) : (
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                {insurance?.map((ins) => (
-                  <div key={ins.id} className="border-b py-4">
-                    <h3 className="font-medium">{ins.provider}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Policy: {ins.policyNumber}
-                    </p>
-                  </div>
-                ))}
+                <label className="text-sm font-medium">Krankenkasse</label>
+                <Input
+                  value={patient?.healthInsuranceCompany}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsuranceCompany: e.target.value })
+                  }
+                />
               </div>
-            )}
+              <div>
+                <label className="text-sm font-medium">Versicherungsnummer</label>
+                <Input
+                  value={patient?.healthInsuranceNumber}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsuranceNumber: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">AHV-Nummer</label>
+                <Input
+                  value={patient?.ahvNumber}
+                  onChange={(e) =>
+                    updatePatient.mutate({ ahvNumber: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Adresse der Krankenkasse</label>
+                <Input
+                  value={patient?.healthInsuranceAddress}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsuranceAddress: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">PLZ</label>
+                <Input
+                  value={patient?.healthInsuranceZip}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsuranceZip: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Ort</label>
+                <Input
+                  value={patient?.healthInsurancePlace}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsurancePlace: e.target.value })
+                  }
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </TabsContent>
@@ -165,27 +207,25 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle>Documents</CardTitle>
+              <CardTitle>Dokumente</CardTitle>
               <Button>
-                <FilePlus className="h-4 w-4 mr-2" />
-                Upload Document
+                <FileText className="h-4 w-4 mr-2" />
+                Dokument hochladen
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingDocuments ? (
-              <div>Loading documents...</div>
-            ) : documents?.length === 0 ? (
-              <div>No documents found</div>
+            {!patient?.documents?.length ? (
+              <div>Keine Dokumente vorhanden</div>
             ) : (
               <div className="space-y-4">
-                {documents?.map((doc) => (
+                {patient.documents?.map((doc) => (
                   <div key={doc.id} className="flex items-center gap-4 p-4 border rounded-lg">
                     <FileText className="h-6 w-6 text-muted-foreground" />
                     <div>
                       <h3 className="font-medium">{doc.title}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Uploaded on {new Date(doc.uploadedAt).toLocaleDateString()}
+                        Hochgeladen am {new Date(doc.uploadedAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -200,21 +240,19 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle>Visit Logs</CardTitle>
+              <CardTitle>Besuchsprotokolle</CardTitle>
               <Button>
-                <CalendarPlus className="h-4 w-4 mr-2" />
-                Record Visit
+                <Calendar className="h-4 w-4 mr-2" />
+                Besuch erfassen
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingVisits ? (
-              <div>Loading visit logs...</div>
-            ) : visits?.length === 0 ? (
-              <div>No visit logs found</div>
+            {!patient?.visits?.length ? (
+              <div>Keine Besuchsprotokolle vorhanden</div>
             ) : (
               <div className="space-y-4">
-                {visits?.map((visit) => (
+                {patient.visits?.map((visit) => (
                   <div key={visit.id} className="border-b py-4">
                     <div className="flex justify-between items-start">
                       <div>
@@ -229,7 +267,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
                         {new Date(visit.startTime).toLocaleTimeString()} -{" "}
                         {visit.endTime
                           ? new Date(visit.endTime).toLocaleTimeString()
-                          : "Ongoing"}
+                          : "Laufend"}
                       </div>
                     </div>
                   </div>
