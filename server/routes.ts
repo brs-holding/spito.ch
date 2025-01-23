@@ -2,6 +2,7 @@
 import express, { type Express } from "express";
 import { type Server } from "http";
 import { invoicesRouter } from "./routes/invoices";
+import { patientsRouter } from "./routes/patients";
 import { createServer } from "http";
 import { setupAuth } from "./auth";
 
@@ -11,6 +12,7 @@ export function registerRoutes(app: Express): Server {
   
   // API Routes
   app.use("/api/invoices", invoicesRouter);
+  app.use("/api/patients", patientsRouter);
   
   // Handle 404 for API routes
   app.use("/api/*", (req, res) => {
