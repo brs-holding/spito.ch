@@ -67,51 +67,37 @@ export default function PatientDetailsDialog({
     enabled: !!patient,
   });
 
-  const { data: patientDetails } = useQuery({
-    queryKey: [`/api/patients/${patient?.id}`],
-    enabled: !!patient,
-    select: (data) => ({
-      ...data,
-      healthInsuranceCompany: data.healthInsuranceCompany || '',
-      healthInsuranceNumber: data.healthInsuranceNumber || '',
-      healthInsuranceAddress: data.healthInsuranceAddress || '',
-      healthInsuranceZip: data.healthInsuranceZip || '',
-      healthInsurancePlace: data.healthInsurancePlace || '',
-      ahvNumber: data.ahvNumber || ''
-    })
-  });
-
   const form = useForm<InsertPatient>({
     defaultValues: {
-      firstName: patientDetails?.firstName || "",
-      lastName: patientDetails?.lastName || "",
-      dateOfBirth: patientDetails?.dateOfBirth
-        ? new Date(patientDetails.dateOfBirth).toISOString().split("T")[0]
+      firstName: patient?.firstName || "",
+      lastName: patient?.lastName || "",
+      dateOfBirth: patient?.dateOfBirth
+        ? new Date(patient.dateOfBirth).toISOString().split("T")[0]
         : "",
-      email: patientDetails?.email || "",
-      phone: patientDetails?.phone || "",
-      address: patientDetails?.address ? JSON.stringify(patientDetails.address) : "",
-      emergencyContact: patientDetails?.emergencyContact
-        ? JSON.stringify(patientDetails.emergencyContact)
+      email: patient?.email || "",
+      phone: patient?.phone || "",
+      address: patient?.address ? JSON.stringify(patient.address) : "",
+      emergencyContact: patient?.emergencyContact
+        ? JSON.stringify(patient.emergencyContact)
         : "",
-      medicalHistory: patientDetails?.medicalHistory || "",
-      currentDiagnoses: patientDetails?.currentDiagnoses || [],
-      allergies: patientDetails?.allergies || [],
-      gender: patientDetails?.gender || "other",
-      primaryPhysicianContact: patientDetails?.primaryPhysicianContact || "",
-      familyAccess: patientDetails?.familyAccess || false,
-      healthInsuranceCompany: patientDetails?.healthInsuranceCompany || "",
-      healthInsuranceNumber: patientDetails?.healthInsuranceNumber || "",
-      ahvNumber: patientDetails?.ahvNumber || "",
-      healthInsuranceAddress: patientDetails?.healthInsuranceAddress || "",
-      healthInsuranceZip: patientDetails?.healthInsuranceZip || "",
-      healthInsurancePlace: patientDetails?.healthInsurancePlace || "",
+      medicalHistory: patient?.medicalHistory || "",
+      currentDiagnoses: patient?.currentDiagnoses || [],
+      allergies: patient?.allergies || [],
+      gender: patient?.gender || "other",
+      primaryPhysicianContact: patient?.primaryPhysicianContact || "",
+      familyAccess: patient?.familyAccess || false,
+      healthInsuranceCompany: patient?.healthInsuranceCompany || "",
+      healthInsuranceNumber: patient?.healthInsuranceNumber || "",
+      ahvNumber: patient?.ahvNumber || "",
+      healthInsuranceAddress: patient?.healthInsuranceAddress || "",
+      healthInsuranceZip: patient?.healthInsuranceZip || "",
+      healthInsurancePlace: patient?.healthInsurancePlace || "",
     },
   });
 
   const updatePatientMutation = useMutation({
     mutationFn: async (data: Partial<InsertPatient>) => {
-      const response = await fetch(`/api/patients/${patientDetails?.id}`, {
+      const response = await fetch(`/api/patients/${patient?.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -143,7 +129,7 @@ export default function PatientDetailsDialog({
 
   const deletePatientMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/patients/${patientDetails?.id}`, {
+      const response = await fetch(`/api/patients/${patient?.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -176,15 +162,15 @@ export default function PatientDetailsDialog({
     updatePatientMutation.mutate(data);
   };
 
-  if (!patientDetails) return null;
+  if (!patient) return null;
 
-  const address = typeof patientDetails.address === "string"
-    ? JSON.parse(patientDetails.address)
-    : patientDetails.address;
+  const address = typeof patient.address === "string"
+    ? JSON.parse(patient.address)
+    : patient.address;
 
-  const emergencyContact = typeof patientDetails.emergencyContact === "string"
-    ? JSON.parse(patientDetails.emergencyContact)
-    : patientDetails.emergencyContact;
+  const emergencyContact = typeof patient.emergencyContact === "string"
+    ? JSON.parse(patient.emergencyContact)
+    : patient.emergencyContact;
 
   return (
     <>
@@ -193,7 +179,7 @@ export default function PatientDetailsDialog({
           <DialogHeader>
             <div className="flex justify-between items-center">
               <DialogTitle className="text-2xl">
-                {patientDetails.firstName} {patientDetails.lastName}
+                {patient.firstName} {patient.lastName}
               </DialogTitle>
               <div className="flex gap-2">
                 {isEditing ? (
@@ -266,7 +252,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input {...form.register("firstName")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.firstName}</p>
+                          <p className="font-medium">{patient.firstName}</p>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -276,7 +262,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input {...form.register("lastName")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.lastName}</p>
+                          <p className="font-medium">{patient.lastName}</p>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -287,7 +273,7 @@ export default function PatientDetailsDialog({
                           <Input type="date" {...form.register("dateOfBirth")} />
                         ) : (
                           <p className="font-medium">
-                            {new Date(patientDetails.dateOfBirth).toLocaleDateString()}
+                            {new Date(patient.dateOfBirth).toLocaleDateString()}
                           </p>
                         )}
                       </div>
@@ -296,7 +282,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input type="email" {...form.register("email")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.email}</p>
+                          <p className="font-medium">{patient.email}</p>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -304,7 +290,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input {...form.register("phone")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.phone}</p>
+                          <p className="font-medium">{patient.phone}</p>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -320,7 +306,7 @@ export default function PatientDetailsDialog({
                           </select>
                         ) : (
                           <p className="font-medium capitalize">
-                            {patientDetails.gender}
+                            {patient.gender}
                           </p>
                         )}
                       </div>
@@ -391,7 +377,7 @@ export default function PatientDetailsDialog({
                       <Input {...form.register("medicalHistory")} />
                     ) : (
                       <p className="text-muted-foreground">
-                        {patientDetails.medicalHistory || "No medical history recorded"}
+                        {patient.medicalHistory || "No medical history recorded"}
                       </p>
                     )}
                   </CardContent>
@@ -407,9 +393,9 @@ export default function PatientDetailsDialog({
                       />
                     ) : (
                       <div className="space-y-2">
-                        {Array.isArray(patientDetails.currentDiagnoses) &&
-                        patientDetails.currentDiagnoses.length > 0 ? (
-                          patientDetails.currentDiagnoses.map(
+                        {Array.isArray(patient.currentDiagnoses) &&
+                        patient.currentDiagnoses.length > 0 ? (
+                          patient.currentDiagnoses.map(
                             (diagnosis: string, index: number) => (
                               <p key={index}>{diagnosis}</p>
                             )
@@ -434,9 +420,9 @@ export default function PatientDetailsDialog({
                       />
                     ) : (
                       <div className="space-y-2">
-                        {Array.isArray(patientDetails.allergies) &&
-                        patientDetails.allergies.length > 0 ? (
-                          patientDetails.allergies.map(
+                        {Array.isArray(patient.allergies) &&
+                        patient.allergies.length > 0 ? (
+                          patient.allergies.map(
                             (allergy: string, index: number) => (
                               <p key={index}>{allergy}</p>
                             )
@@ -453,7 +439,7 @@ export default function PatientDetailsDialog({
               </TabsContent>
 
               <TabsContent value="appointments" className="space-y-4">
-                <AppointmentScheduler patient={patientDetails} />
+                <AppointmentScheduler patient={patient} />
 
                 <Card>
                   <CardContent className="pt-6">
@@ -501,20 +487,20 @@ export default function PatientDetailsDialog({
                 <Card>
                   <CardContent className="pt-6">
                     <h3 className="font-medium mb-4">Documents</h3>
-                    <DocumentUpload patientId={patientDetails.id} />
+                    <DocumentUpload patientId={patient.id} />
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardContent className="pt-6">
                     <h3 className="font-medium mb-4">Document List</h3>
-                    <DocumentList patientId={patientDetails.id} />
+                    <DocumentList patientId={patient.id} />
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="journal" className="space-y-4">
-                <JournalSection patientId={patientDetails?.id || 0} />
+                <JournalSection patientId={patient?.id || 0} />
               </TabsContent>
 
               <TabsContent value="insurance" className="space-y-4">
@@ -526,7 +512,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input {...form.register("healthInsuranceCompany")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.healthInsuranceCompany || "-"}</p>
+                          <p className="font-medium">{patient.healthInsuranceCompany || "-"}</p>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -534,7 +520,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input {...form.register("healthInsuranceNumber")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.healthInsuranceNumber || "-"}</p>
+                          <p className="font-medium">{patient.healthInsuranceNumber || "-"}</p>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -542,7 +528,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input {...form.register("ahvNumber")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.ahvNumber || "-"}</p>
+                          <p className="font-medium">{patient.ahvNumber || "-"}</p>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -550,7 +536,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input {...form.register("healthInsuranceAddress")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.healthInsuranceAddress || "-"}</p>
+                          <p className="font-medium">{patient.healthInsuranceAddress || "-"}</p>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -558,7 +544,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input {...form.register("healthInsuranceZip")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.healthInsuranceZip || "-"}</p>
+                          <p className="font-medium">{patient.healthInsuranceZip || "-"}</p>
                         )}
                       </div>
                       <div className="space-y-1">
@@ -566,7 +552,7 @@ export default function PatientDetailsDialog({
                         {isEditing ? (
                           <Input {...form.register("healthInsurancePlace")} />
                         ) : (
-                          <p className="font-medium">{patientDetails.healthInsurancePlace || "-"}</p>
+                          <p className="font-medium">{patient.healthInsurancePlace || "-"}</p>
                         )}
                       </div>
                     </div>
