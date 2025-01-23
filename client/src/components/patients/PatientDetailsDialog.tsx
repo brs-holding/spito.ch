@@ -86,6 +86,12 @@ export default function PatientDetailsDialog({
       gender: patient?.gender || "other",
       primaryPhysicianContact: patient?.primaryPhysicianContact || "",
       familyAccess: patient?.familyAccess || false,
+      healthInsuranceCompany: patient?.healthInsuranceCompany || "",
+      healthInsuranceNumber: patient?.healthInsuranceNumber || "",
+      ahvNumber: patient?.ahvNumber || "",
+      healthInsuranceAddress: patient?.healthInsuranceAddress || "",
+      healthInsuranceZip: patient?.healthInsuranceZip || "",
+      healthInsurancePlace: patient?.healthInsurancePlace || "",
     },
   });
 
