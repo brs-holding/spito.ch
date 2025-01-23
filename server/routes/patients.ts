@@ -16,8 +16,16 @@ router.post("/", async (req: Request, res: Response) => {
       ...req.body,
       dateOfBirth: new Date(req.body.dateOfBirth),
       organizationId: req.user.organizationId,
+      healthInsuranceCompany: req.body.healthInsuranceCompany || null,
+      healthInsuranceAddress: req.body.healthInsuranceAddress || null,
+      healthInsuranceZip: req.body.healthInsuranceZip || null,
+      healthInsurancePlace: req.body.healthInsurancePlace || null,
+      healthInsuranceNumber: req.body.healthInsuranceNumber || null,
+      ahvNumber: req.body.ahvNumber || null,
       createdAt: new Date(),
     };
+
+    console.log("Creating patient with data:", newPatient);
 
     const result = await db.insert(patients).values(newPatient);
     return res.status(201).json(result);
