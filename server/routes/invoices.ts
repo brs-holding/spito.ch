@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import express, { Request, Response } from "express";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { 
@@ -7,11 +7,11 @@ import {
   serviceLogs, 
   insertInvoiceSchema,
   insertInvoiceItemSchema,
-  type InsertInvoice,
-  type InsertInvoiceItem 
 } from "@db/schema";
 
-export async function createInvoice(req: Request, res: Response) {
+const router = express.Router();
+
+router.post("/", async (req: Request, res: Response) => {
   try {
     const result = insertInvoiceSchema.safeParse(req.body);
     if (!result.success) {
@@ -23,19 +23,16 @@ export async function createInvoice(req: Request, res: Response) {
 
     const { startDate, endDate, patientId, ...rest } = result.data;
 
-    // Ensure patientId is a number
     const parsedPatientId = Number(patientId);
     if (isNaN(parsedPatientId)) {
       return res.status(400).json({ message: "Invalid patient ID" });
     }
 
-    // Generate unique invoice number (INVOICE-YYYYMMDD-XXXXX)
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
     const random = Math.floor(Math.random() * 100000).toString().padStart(5, "0");
     const invoiceNumber = `INVOICE-${dateStr}-${random}`;
 
-    // Create invoice with properly typed data
     const [invoice] = await db.insert(invoices)
       .values({
         ...rest,
@@ -57,9 +54,9 @@ export async function createInvoice(req: Request, res: Response) {
       error: error.message 
     });
   }
-}
+});
 
-export async function listInvoices(req: Request, res: Response) {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const { patientId, status } = req.query;
     let query = db.select().from(invoices);
@@ -84,9 +81,9 @@ export async function listInvoices(req: Request, res: Response) {
       error: error.message 
     });
   }
-}
+});
 
-export async function getInvoiceDetails(req: Request, res: Response) {
+router.get("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const invoiceId = Number(id);
@@ -113,9 +110,9 @@ export async function getInvoiceDetails(req: Request, res: Response) {
     console.error("Failed to get invoice details:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
-}
+});
 
-export async function updateInvoiceStatus(req: Request, res: Response) {
+router.put("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -139,9 +136,9 @@ export async function updateInvoiceStatus(req: Request, res: Response) {
     console.error("Failed to update invoice status:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
-}
+});
 
-export async function addInvoiceItem(req: Request, res: Response) {
+router.post("/:id/item", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const invoiceId = Number(id);
@@ -177,4 +174,6 @@ export async function addInvoiceItem(req: Request, res: Response) {
     console.error("Failed to add invoice item:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
-}
+});
+
+export const invoicesRouter = router;
