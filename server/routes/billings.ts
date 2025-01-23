@@ -62,6 +62,8 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
+import PDFDocument from 'pdfkit';
+
 router.get("/:id/pdf", async (req: Request, res: Response) => {
   try {
     if (!req.user) {
@@ -81,9 +83,7 @@ router.get("/:id/pdf", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Not found" });
     }
 
-    const PDFDocument = require('pdfkit');
     const doc = new PDFDocument();
-
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=billing-${billingId}.pdf`);
 
