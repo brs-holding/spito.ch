@@ -63,6 +63,12 @@ export const patients = pgTable("patients", {
   primaryPhysicianContact: jsonb("primary_physician_contact"),
   preferences: jsonb("preferences"),
   familyAccess: jsonb("family_access"),
+  healthInsuranceCompany: text("health_insurance_company"),
+  healthInsuranceAddress: text("health_insurance_address"),
+  healthInsuranceZip: text("health_insurance_zip"),
+  healthInsurancePlace: text("health_insurance_place"),
+  healthInsuranceNumber: text("health_insurance_number"),
+  ahvNumber: text("ahv_number"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

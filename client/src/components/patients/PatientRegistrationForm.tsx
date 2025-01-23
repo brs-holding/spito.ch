@@ -370,6 +370,95 @@ export default function PatientRegistrationForm() {
 
           {/* ...rest of the component remains untranslated for brevity ... */}
           <TabsContent value="medical" className="space-y-4">
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Versicherungsinformationen</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="healthInsuranceCompany"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Krankenkasse</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="healthInsuranceNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Versichertennummer</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="healthInsuranceAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Adresse der Krankenkasse</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="healthInsuranceZip"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>PLZ</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="healthInsurancePlace"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ort</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ahvNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>AHV-Nummer</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
             <FormField
               control={form.control}
               name="medicalHistory"
