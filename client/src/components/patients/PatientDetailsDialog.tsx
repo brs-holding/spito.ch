@@ -208,7 +208,7 @@ export default function PatientDetailsDialog({
 
           <LoadingTransition>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-5">
+              <TabsList className="grid grid-cols-6">
                 <TabsTrigger value="basic">
                   <User className="h-4 w-4 mr-2" />
                   Basic Info
@@ -228,6 +228,10 @@ export default function PatientDetailsDialog({
                 <TabsTrigger value="journal">
                   <Book className="h-4 w-4 mr-2" />
                   Journal
+                </TabsTrigger>
+                <TabsTrigger value="insurance">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Versicherung
                 </TabsTrigger>
               </TabsList>
 
@@ -491,6 +495,63 @@ export default function PatientDetailsDialog({
 
               <TabsContent value="journal" className="space-y-4">
                 <JournalSection patientId={patient?.id || 0} />
+              </TabsContent>
+
+              <TabsContent value="insurance" className="space-y-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Krankenkasse</p>
+                        {isEditing ? (
+                          <Input {...form.register("healthInsuranceCompany")} />
+                        ) : (
+                          <p className="font-medium">{patient.healthInsuranceCompany || "-"}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Versicherungsnummer</p>
+                        {isEditing ? (
+                          <Input {...form.register("healthInsuranceNumber")} />
+                        ) : (
+                          <p className="font-medium">{patient.healthInsuranceNumber || "-"}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">AHV-Nummer</p>
+                        {isEditing ? (
+                          <Input {...form.register("ahvNumber")} />
+                        ) : (
+                          <p className="font-medium">{patient.ahvNumber || "-"}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Adresse</p>
+                        {isEditing ? (
+                          <Input {...form.register("healthInsuranceAddress")} />
+                        ) : (
+                          <p className="font-medium">{patient.healthInsuranceAddress || "-"}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">PLZ</p>
+                        {isEditing ? (
+                          <Input {...form.register("healthInsuranceZip")} />
+                        ) : (
+                          <p className="font-medium">{patient.healthInsuranceZip || "-"}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Ort</p>
+                        {isEditing ? (
+                          <Input {...form.register("healthInsurancePlace")} />
+                        ) : (
+                          <p className="font-medium">{patient.healthInsurancePlace || "-"}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </LoadingTransition>
