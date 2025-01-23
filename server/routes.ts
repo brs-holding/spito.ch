@@ -3,8 +3,12 @@ import express, { type Express } from "express";
 import { type Server } from "http";
 import { invoicesRouter } from "./routes/invoices";
 import { createServer } from "http";
+import { setupAuth } from "./auth";
 
 export function registerRoutes(app: Express): Server {
+  // Setup authentication
+  setupAuth(app);
+  
   // API Routes
   app.use("/api/invoices", invoicesRouter);
   
