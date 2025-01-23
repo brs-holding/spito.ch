@@ -124,7 +124,9 @@
     "profile": "Profil",
     "help": "Hilfe",
     "billing": "Abrechnung",
-    "reports": "Berichte"
+    "reports": "Berichte",
+    "employees": "Mitarbeiter",
+    "carePlans": "Pflegepläne"
   },
   "dashboard": {
     "welcome": "Willkommen",

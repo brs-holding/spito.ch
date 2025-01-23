@@ -12,6 +12,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { Link } from "wouter";
+import { t } from "@/lib/i18n";
 
 interface SidebarProps {
   user: User;
@@ -39,7 +40,7 @@ export default function Sidebar({ user }: SidebarProps) {
           <Link href="/">
             <Button variant="ghost" className="w-full justify-start">
               <LayoutDashboard className="mr-2 h-4 w-4" />
-              Dashboard{/* Übersichtsseite */}
+              {t('navigation.dashboard')}
             </Button>
           </Link>
 
@@ -47,7 +48,7 @@ export default function Sidebar({ user }: SidebarProps) {
             <Link href="/employees">
               <Button variant="ghost" className="w-full justify-start">
                 <UserPlus className="mr-2 h-4 w-4" />
-                Mitarbeiter{/* Angestellte */}
+                {t('navigation.employees')}
               </Button>
             </Link>
           )}
@@ -55,35 +56,35 @@ export default function Sidebar({ user }: SidebarProps) {
           <Link href="/patients">
             <Button variant="ghost" className="w-full justify-start">
               <Users className="mr-2 h-4 w-4" />
-              Patienten
+              {t('navigation.patients')}
             </Button>
           </Link>
 
           <Link href="/care-plans">
             <Button variant="ghost" className="w-full justify-start">
               <ClipboardList className="mr-2 h-4 w-4" />
-              Pflegepläne
+              {t('navigation.carePlans')}
             </Button>
           </Link>
 
           <Link href="/schedule">
             <Button variant="ghost" className="w-full justify-start">
               <Calendar className="mr-2 h-4 w-4" />
-              Terminplan
+              {t('navigation.schedule')}
             </Button>
           </Link>
 
-          <Link href="/invoices">
+          <Link href="/billing">
             <Button variant="ghost" className="w-full justify-start">
               <Receipt className="mr-2 h-4 w-4" />
-              Rechnungen
+              {t('navigation.billing')}
             </Button>
           </Link>
 
           <Link href="/settings">
             <Button variant="ghost" className="w-full justify-start">
               <Settings className="mr-2 h-4 w-4" />
-              Einstellungen
+              {t('navigation.settings')}
             </Button>
           </Link>
         </nav>
@@ -95,7 +96,7 @@ export default function Sidebar({ user }: SidebarProps) {
             onClick={() => logout()}
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Abmelden
+            {t('auth.logout')}
           </Button>
         </div>
       </div>
