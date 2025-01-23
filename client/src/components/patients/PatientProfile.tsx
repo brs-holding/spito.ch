@@ -66,6 +66,10 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
     return <div>Lade Patientendaten...</div>;
   }
 
+  if (!patient) {
+    return <div>Patient nicht gefunden</div>;
+  }
+
   return (
     <Tabs defaultValue="basic" className="w-full">
       <TabsList>
@@ -105,7 +109,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
               <div>
                 <label className="text-sm font-medium">Vorname</label>
                 <Input
-                  value={patient?.firstName}
+                  value={patient.firstName || ""}
                   onChange={(e) =>
                     updatePatient.mutate({ firstName: e.target.value })
                   }
@@ -114,7 +118,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
               <div>
                 <label className="text-sm font-medium">Nachname</label>
                 <Input
-                  value={patient?.lastName}
+                  value={patient.lastName || ""}
                   onChange={(e) =>
                     updatePatient.mutate({ lastName: e.target.value })
                   }
@@ -123,7 +127,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
               <div>
                 <label className="text-sm font-medium">E-Mail</label>
                 <Input
-                  value={patient?.email}
+                  value={patient.email || ""}
                   type="email"
                   onChange={(e) =>
                     updatePatient.mutate({ email: e.target.value })
@@ -133,7 +137,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
               <div>
                 <label className="text-sm font-medium">Telefon</label>
                 <Input
-                  value={patient?.phone}
+                  value={patient.phone || ""}
                   type="tel"
                   onChange={(e) =>
                     updatePatient.mutate({ phone: e.target.value })
@@ -155,7 +159,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
               <div>
                 <label className="text-sm font-medium">Medizinische Vorgeschichte</label>
                 <Input
-                  value={patient?.medicalHistory || ""}
+                  value={patient.medicalHistory || ""}
                   onChange={(e) =>
                     updatePatient.mutate({ medicalHistory: e.target.value })
                   }
@@ -207,59 +211,29 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Krankenkasse</label>
-                <Input
-                  value={patient?.healthInsuranceCompany}
-                  onChange={(e) =>
-                    updatePatient.mutate({ healthInsuranceCompany: e.target.value })
-                  }
-                />
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Krankenkasse</p>
+                <p className="font-medium">{patient.healthInsuranceCompany || "-"}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium">Versicherungsnummer</label>
-                <Input
-                  value={patient?.healthInsuranceNumber}
-                  onChange={(e) =>
-                    updatePatient.mutate({ healthInsuranceNumber: e.target.value })
-                  }
-                />
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Versicherungsnummer</p>
+                <p className="font-medium">{patient.healthInsuranceNumber || "-"}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium">AHV-Nummer</label>
-                <Input
-                  value={patient?.ahvNumber}
-                  onChange={(e) =>
-                    updatePatient.mutate({ ahvNumber: e.target.value })
-                  }
-                />
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">AHV-Nummer</p>
+                <p className="font-medium">{patient.ahvNumber || "-"}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium">Adresse der Krankenkasse</label>
-                <Input
-                  value={patient?.healthInsuranceAddress}
-                  onChange={(e) =>
-                    updatePatient.mutate({ healthInsuranceAddress: e.target.value })
-                  }
-                />
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Adresse</p>
+                <p className="font-medium">{patient.healthInsuranceAddress || "-"}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium">PLZ</label>
-                <Input
-                  value={patient?.healthInsuranceZip}
-                  onChange={(e) =>
-                    updatePatient.mutate({ healthInsuranceZip: e.target.value })
-                  }
-                />
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">PLZ</p>
+                <p className="font-medium">{patient.healthInsuranceZip || "-"}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium">Ort</label>
-                <Input
-                  value={patient?.healthInsurancePlace}
-                  onChange={(e) =>
-                    updatePatient.mutate({ healthInsurancePlace: e.target.value })
-                  }
-                />
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Ort</p>
+                <p className="font-medium">{patient.healthInsurancePlace || "-"}</p>
               </div>
             </div>
           </CardContent>
