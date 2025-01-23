@@ -222,7 +222,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Create New Task</DialogTitle>
+                    <DialogTitle>{t('tasks.createTask')}</DialogTitle>
                   </DialogHeader>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -231,9 +231,9 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                         name="title"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Title</FormLabel>
+                            <FormLabel>{t('tasks.taskTitle')}</FormLabel>
                             <FormControl>
-                              <Input placeholder="Task title" {...field} />
+                              <Input placeholder={t('tasks.taskTitle')} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -244,9 +244,9 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                         name="description"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Description</FormLabel>
+                            <FormLabel>{t('tasks.taskDescription')}</FormLabel>
                             <FormControl>
-                              <Textarea placeholder="Task description" {...field} />
+                              <Textarea placeholder={t('tasks.taskDescription')} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -258,13 +258,13 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                           name="patientId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Patient</FormLabel>
+                              <FormLabel>{t('patients.title')}</FormLabel>
                               <Select
                                 onValueChange={(value) => field.onChange(parseInt(value))}
                                 value={field.value ? String(field.value) : undefined}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select patient" />
+                                  <SelectValue placeholder={t('patients.select')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {patients?.map((patient: any) => (
@@ -284,7 +284,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                         name="assignedToIds"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Assign To</FormLabel>
+                            <FormLabel>{t('tasks.assignedTo')}</FormLabel>
                             <Combobox
                               items={employees?.map((emp: any) => ({
                                 label: emp.fullName,
@@ -292,7 +292,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                               })) ?? []}
                               values={field.value.map(String)}
                               onChange={(values) => field.onChange(values.map(Number))}
-                              placeholder="Select employees"
+                              placeholder={t('employees.select')}
                               multiple
                             />
                             <FormMessage />
@@ -304,18 +304,18 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                         name="priority"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Priority</FormLabel>
+                            <FormLabel>{t('tasks.priority.title')}</FormLabel>
                             <Select
                               onValueChange={field.onChange}
                               value={field.value}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Select priority" />
+                                <SelectValue placeholder={t('tasks.selectPriority')} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="high">High</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="high">{t('tasks.priority.high')}</SelectItem>
+                                <SelectItem value="medium">{t('tasks.priority.medium')}</SelectItem>
+                                <SelectItem value="low">{t('tasks.priority.low')}</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -327,7 +327,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                         name="dueDate"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Due Date</FormLabel>
+                            <FormLabel>{t('tasks.dueDateLabel')}</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} />
                             </FormControl>
@@ -336,7 +336,7 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                         )}
                       />
                       <Button type="submit" className="w-full">
-                        Create Task
+                        {t('tasks.createTask')}
                       </Button>
                     </form>
                   </Form>
@@ -348,10 +348,10 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="text-center py-4">Loading tasks...</div>
+          <div className="text-center py-4">{t('common.loading')}</div>
         ) : filteredTasks.length === 0 ? (
           <div className="text-center py-4 text-muted-foreground">
-            No tasks {filter !== "all" ? `(${filter})` : ""}
+            {t('tasks.noTasks')} {filter !== "all" ? `(${filter})` : ""}
           </div>
         ) : (
           <div className="space-y-4">
@@ -370,10 +370,10 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                       variant={getBadgeVariant(task.status)}
                       className="capitalize"
                     >
-                      {(task.status || "unknown").replace("_", " ")}
+                      {t(`tasks.${task.status || "pending"}`)}
                     </Badge>
                     <Badge className={getPriorityColor(task.priority || "medium")}>
-                      {task.priority || "medium"}
+                      {t(`tasks.priority.${task.priority || "medium"}`)}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -381,12 +381,12 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                   </p>
                   <div className="flex items-center gap-4 mt-4">
                     <p className="text-xs text-muted-foreground">
-                      Due: {new Date(task.dueDate).toLocaleDateString()}
+                      {t('tasks.dueDate')}: {new Date(task.dueDate).toLocaleDateString('de-DE')}
                     </p>
                     {task.assignments?.length > 0 && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Users className="h-3 w-3" />
-                        {task.assignments.length} assigned
+                        {task.assignments.length} {t('tasks.assigned')}
                       </div>
                     )}
                     {!minimal && (
@@ -395,12 +395,12 @@ export default function TaskBoard({ userId, patientId, minimal = false }: TaskBo
                         onValueChange={(value) => handleStatusChange(task.id, value)}
                       >
                         <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Update status" />
+                          <SelectValue placeholder={t('common.status')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="pending">{t('tasks.pending')}</SelectItem>
+                          <SelectItem value="in_progress">{t('tasks.inProgress')}</SelectItem>
+                          <SelectItem value="completed">{t('tasks.completed')}</SelectItem>
                         </SelectContent>
                       </Select>
                     )}

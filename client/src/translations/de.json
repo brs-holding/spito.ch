@@ -10,7 +10,22 @@
     "submit": "Absenden",
     "success": "Erfolgreich",
     "required": "Pflichtfeld",
-    "add": "Hinzufügen"
+    "add": "Hinzufügen",
+    "filterBy": "Filtern nach",
+    "allItems": "Alle Einträge",
+    "pending": "Ausstehend",
+    "inProgress": "In Bearbeitung",
+    "completed": "Abgeschlossen",
+    "noData": "Keine Daten verfügbar",
+    "search": "Suchen",
+    "details": "Details",
+    "description": "Beschreibung",
+    "date": "Datum",
+    "time": "Uhrzeit",
+    "status": "Status",
+    "actions": "Aktionen",
+    "create": "Erstellen",
+    "update": "Aktualisieren"
   },
   "auth": {
     "login": "Anmelden",
@@ -18,9 +33,12 @@
     "username": "Benutzername",
     "password": "Passwort",
     "register": "Registrieren",
-    "forgotPassword": "Passwort vergessen?"
+    "forgotPassword": "Passwort vergessen?",
+    "loginSuccess": "Erfolgreich angemeldet",
+    "loginError": "Anmeldung fehlgeschlagen"
   },
   "employees": {
+    "title": "Mitarbeiter",
     "overview": "Mitarbeiter Übersicht",
     "addEmployee": "Mitarbeiter Hinzufügen",
     "totalEmployees": "Anzahl Mitarbeiter",
@@ -28,7 +46,9 @@
     "activeEmployees": "Aktive Mitarbeiter",
     "currentlyActive": "Aktuell im Einsatz",
     "recentHires": "Neue Anstellungen",
-    "addedLastThirtyDays": "In den letzten 30 Tagen beigetretten"
+    "addedLastThirtyDays": "In den letzten 30 Tagen beigetretten",
+    "select": "Mitarbeiter auswählen",
+    "details": "Mitarbeiter Details"
   },
   "patients": {
     "title": "Patienten",
@@ -48,7 +68,8 @@
     "noAppointments": "Keine Terminhistorie",
     "uploadDocument": "Dokument hochladen",
     "documentType": "Dokumententyp",
-    "documentDate": "Dokumentendatum"
+    "documentDate": "Dokumentendatum",
+    "select": "Patient auswählen"
   },
   "tasks": {
     "title": "Aufgaben",
@@ -56,7 +77,25 @@
     "noTasks": "Keine Aufgaben vorhanden",
     "status": "Status",
     "dueDate": "Fälligkeitsdatum",
-    "assignedTo": "Zugewiesen an"
+    "assignedTo": "Zugewiesen an",
+    "createTask": "Aufgabe Erstellen",
+    "taskTitle": "Aufgabentitel",
+    "taskDescription": "Aufgabenbeschreibung",
+    "priority": {
+      "title": "Priorität",
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
+    "filterBy": "Nach Status filtern",
+    "allTasks": "Alle Aufgaben",
+    "pending": "Ausstehend",
+    "inProgress": "In Bearbeitung",
+    "completed": "Abgeschlossen",
+    "assigned": "Zugewiesen",
+    "selectPriority": "Priorität wählen",
+    "selectPatient": "Patient wählen",
+    "dueDateLabel": "Fälligkeitsdatum"
   },
   "appointments": {
     "title": "Termine",
@@ -83,14 +122,31 @@
     "documents": "Dokumente",
     "settings": "Einstellungen",
     "profile": "Profil",
-    "help": "Hilfe"
+    "help": "Hilfe",
+    "billing": "Abrechnung",
+    "reports": "Berichte"
   },
   "dashboard": {
     "welcome": "Willkommen",
     "upcomingAppointments": "Anstehende Termine",
     "recentDocuments": "Aktuelle Dokumente",
     "patientOverview": "Patientenübersicht",
-    "quickActions": "Schnellzugriff"
+    "quickActions": "Schnellzugriff",
+    "recentActivity": "Letzte Aktivitäten",
+    "statistics": "Statistiken"
+  },
+  "billing": {
+    "title": "Abrechnung",
+    "createBill": "Rechnung erstellen",
+    "billDetails": "Rechnungsdetails",
+    "amount": "Betrag",
+    "date": "Datum",
+    "status": "Status",
+    "paid": "Bezahlt",
+    "unpaid": "Unbezahlt",
+    "overdue": "Überfällig",
+    "downloadPdf": "PDF herunterladen",
+    "sendReminder": "Erinnerung senden"
   },
   "errorMessages": {
     "notAuthenticated": "Nicht authentifiziert",
@@ -100,13 +156,20 @@
     "outsideBusinessHours": "Termine sind nur zwischen 9 Uhr und 17 Uhr möglich",
     "serverError": "Serverfehler aufgetreten",
     "connectionError": "Verbindungsfehler",
-    "validationError": "Überprüfen Sie Ihre Eingaben"
+    "validationError": "Überprüfen Sie Ihre Eingaben",
+    "requiredField": "Dies ist ein Pflichtfeld",
+    "invalidEmail": "Ungültige E-Mail-Adresse",
+    "invalidPhone": "Ungültige Telefonnummer"
   },
   "status": {
     "scheduled": "Geplant",
     "confirmed": "Bestätigt",
     "cancelled": "Storniert",
     "completed": "Abgeschlossen",
-    "inProgress": "In Bearbeitung"
+    "inProgress": "In Bearbeitung",
+    "draft": "Entwurf",
+    "submitted": "Eingereicht",
+    "approved": "Genehmigt",
+    "rejected": "Abgelehnt"
   }
 }

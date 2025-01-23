@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Users, AlertTriangle } from "lucide-react";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { t } from "@/lib/i18n";
 
 interface SubUserOverviewProps {
   totalUsers: number;
@@ -24,20 +25,20 @@ export default function SubUserOverview({
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sub-Users</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('employees.totalEmployees')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalUsers}</div>
             <p className="text-xs text-muted-foreground">
-              of {maxUsers} available slots
+              von {maxUsers} verfügbaren Plätzen
             </p>
           </CardContent>
         </Card>
 
         <Card className={isNearLimit ? "border-yellow-500" : ""}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Account Usage</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('employees.overview')}</CardTitle>
             {isNearLimit && (
               <AlertTriangle className="h-4 w-4 text-yellow-500" />
             )}
@@ -46,7 +47,7 @@ export default function SubUserOverview({
             <div className="space-y-2">
               <Progress value={usagePercentage} />
               <p className="text-xs text-muted-foreground">
-                {usagePercentage.toFixed(1)}% of capacity used
+                {usagePercentage.toFixed(1)}% der Kapazität genutzt
               </p>
             </div>
           </CardContent>
@@ -62,7 +63,7 @@ export default function SubUserOverview({
               className="space-x-2"
             >
               <UserPlus className="h-4 w-4" />
-              <span>Add New Employee</span>
+              <span>{t('employees.addEmployee')}</span>
             </Button>
           </DialogTrigger>
         </Dialog>
@@ -77,8 +78,8 @@ export default function SubUserOverview({
             <div className="ml-3">
               <p className="text-sm text-yellow-700">
                 {isAtLimit
-                  ? "You have reached the maximum number of sub-users. Please upgrade your plan to add more employees."
-                  : "You are approaching your sub-user limit. Consider upgrading your plan to add more employees."}
+                  ? "Sie haben die maximale Anzahl von Mitarbeitern erreicht. Bitte upgraden Sie Ihren Plan, um weitere Mitarbeiter hinzuzufügen."
+                  : "Sie nähern sich Ihrem Mitarbeiterlimit. Erwägen Sie ein Upgrade Ihres Plans, um weitere Mitarbeiter hinzuzufügen."}
               </p>
             </div>
           </div>
