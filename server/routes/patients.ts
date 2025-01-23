@@ -6,6 +6,29 @@ import { eq, sql } from "drizzle-orm";
 
 const router = express.Router();
 
+router.post("/", async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const newPatient = {
+      ...req.body,
+      organizationId: req.user.organizationId,
+      createdAt: new Date(),
+    };
+
+    const result = await db.insert(patients).values(newPatient);
+    return res.status(201).json(result);
+  } catch (error: any) {
+    console.error("Failed to create patient:", error);
+    return res.status(500).json({ 
+      message: "Failed to create patient", 
+      error: error.message 
+    });
+  }
+});
+
 router.get("/", async (req: Request, res: Response) => {
   try {
     if (!req.user) {
