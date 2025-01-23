@@ -1,0 +1,84 @@
+Creating patient with data: {
+  firstName: 'Jongo',
+  lastName: 'Pongo',
+  dateOfBirth: 1995-01-01T00:00:00.000Z,
+  gender: 'male',
+  email: 'obo@gmail.com',
+  phone: '564456456456',
+  address: '{"street":"Bongostreet","city":"Bongo","state":"BL","zipCode":"4145"}',
+  emergencyContact: '{"name":"Gerdo","relationship":"Vater","phone":"5151515151"}',
+  medicalHistory: 'Hat husten',
+  currentDiagnoses: '[]',
+  allergies: '[]',
+  primaryPhysicianContact: '{"name":"Herro","phone":"4141414141","email":"herro@gmail.com"}',
+  familyAccess: [],
+  healthInsuranceCompany: 'GM',
+  healthInsuranceAddress: 'Helbron',
+  healthInsuranceZip: '414141',
+  healthInsurancePlace: 'Basel',
+  healthInsuranceNumber: '414514411',
+  ahvNumber: '4141414141',
+  preferences: '{"familyAccess":[]}',
+  organizationId: 11,
+  createdAt: 2025-01-23T14:08:23.097Z
+}
+Failed to create patient: PostgresError: column "health_insurance_company" of relation "patients" does not exist
+    at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:788:26)
+    at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:474:6)
+    at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+    at TLSSocket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42703',
+  position: '279',
+  file: 'parse_target.c',
+  line: '1066',
+  routine: 'checkInsertTargets'
+}
+2:08:23 PM [express] POST /api/patients 500 in 130ms :: {"message":"Failed to create patient","error…
+Creating patient with data: {
+  firstName: 'Jongo',
+  lastName: 'Pongo',
+  dateOfBirth: 1995-01-01T00:00:00.000Z,
+  gender: 'male',
+  email: 'obo@gmail.com',
+  phone: '564456456456',
+  address: '{"street":"Bongostreet","city":"Bongo","state":"BL","zipCode":"4145"}',
+  emergencyContact: '{"name":"Gerdo","relationship":"Vater","phone":"5151515151"}',
+  medicalHistory: 'Hat husten',
+  currentDiagnoses: '[]',
+  allergies: '[]',
+  primaryPhysicianContact: '{"name":"Herro","phone":"4141414141","email":"herro@gmail.com"}',
+  preferences: '{"specialNeeds":"Hi hi hi","familyAccess":[]}',
+  familyAccess: [],
+  healthInsuranceCompany: 'GM',
+  healthInsuranceAddress: 'Helbron',
+  healthInsuranceZip: '414141',
+  healthInsurancePlace: 'Basel',
+  healthInsuranceNumber: '414514411',
+  ahvNumber: '4141414141',
+  organizationId: 11,
+  createdAt: 2025-01-23T14:08:31.158Z
+}
+Failed to create patient: PostgresError: column "health_insurance_company" of relation "patients" does not exist
+    at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:788:26)
+    at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:474:6)
+    at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+    at TLSSocket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42703',
+  position: '279',
+  file: 'parse_target.c',
+  line: '1066',
+  routine: 'checkInsertTargets'
+}
+2:08:31 PM [express] POST /api/patients 500 in 124ms :: {"message":"Failed to create patient","error…

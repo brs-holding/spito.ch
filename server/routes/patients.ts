@@ -1,4 +1,3 @@
-
 import express, { Request, Response } from "express";
 import { db } from "@db";
 import { patients } from "@db/schema";
@@ -12,28 +11,50 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    // Log the incoming request body for debugging
+    console.log("Patient registration request body:", req.body);
+
     const newPatient = {
-      ...req.body,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
       dateOfBirth: new Date(req.body.dateOfBirth),
-      organizationId: req.user.organizationId,
+      gender: req.body.gender,
+      email: req.body.email,
+      phone: req.body.phone,
+      address: JSON.stringify(req.body.address),
+      emergencyContact: JSON.stringify(req.body.emergencyContact),
+      currentDiagnoses: JSON.stringify(req.body.currentDiagnoses || []),
+      allergies: JSON.stringify(req.body.allergies || []),
+      primaryPhysicianContact: JSON.stringify(req.body.primaryPhysicianContact),
+      preferences: JSON.stringify({
+        specialNeeds: req.body.preferences,
+        familyAccess: req.body.familyAccess || [],
+      }),
       healthInsuranceCompany: req.body.healthInsuranceCompany || null,
       healthInsuranceAddress: req.body.healthInsuranceAddress || null,
       healthInsuranceZip: req.body.healthInsuranceZip || null,
       healthInsurancePlace: req.body.healthInsurancePlace || null,
       healthInsuranceNumber: req.body.healthInsuranceNumber || null,
       ahvNumber: req.body.ahvNumber || null,
+      medicalHistory: req.body.medicalHistory || null,
+      organizationId: req.user.organizationId,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
-    console.log("Creating patient with data:", newPatient);
+    console.log("Formatted patient data:", newPatient);
 
-    const result = await db.insert(patients).values(newPatient);
+    const [result] = await db.insert(patients).values(newPatient).returning();
+    console.log("Database insert result:", result);
+
     return res.status(201).json(result);
   } catch (error: any) {
     console.error("Failed to create patient:", error);
+    console.error("Error stack trace:", error.stack);
     return res.status(500).json({ 
       message: "Failed to create patient", 
-      error: error.message 
+      error: error.message,
+      details: error.stack
     });
   }
 });
