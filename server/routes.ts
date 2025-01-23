@@ -2,6 +2,7 @@
 import express, { type Express } from "express";
 import { type Server } from "http";
 import { invoicesRouter } from "./routes/invoices";
+import { createServer } from "http";
 
 export function registerRoutes(app: Express): Server {
   // API Routes
@@ -12,5 +13,5 @@ export function registerRoutes(app: Express): Server {
     res.status(404).json({ message: "Not found" });
   });
 
-  return require("http").createServer(app);
+  return createServer(app);
 }
