@@ -28,8 +28,9 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
   const queryClient = useQueryClient();
 
   // Fetch patient data including insurance information
-  const { data: patient, isLoading: isLoadingPatient } = useQuery<Patient>({
+  const { data: patient, isLoading } = useQuery<Patient>({
     queryKey: [`/api/patients/${patientId}`],
+    refetchOnWindowFocus: false,
   });
 
   const updatePatient = useMutation({
@@ -63,7 +64,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
     },
   });
 
-  if (isLoadingPatient) {
+  if (isLoading) {
     return <div>Lade Patientendaten...</div>;
   }
 
@@ -94,12 +95,9 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
           <Shield className="h-4 w-4 mr-2" />
           Versicherungen
         </TabsTrigger>
-        <TabsTrigger value="journal">
-          <ClipboardList className="h-4 w-4 mr-2" />
-          Journal
-        </TabsTrigger>
       </TabsList>
 
+      {/* Basic Info Tab */}
       <TabsContent value="basic">
         <Card>
           <CardHeader>
@@ -150,6 +148,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
         </Card>
       </TabsContent>
 
+      {/* Medical Info Tab */}
       <TabsContent value="medical">
         <Card>
           <CardHeader>
@@ -171,6 +170,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
         </Card>
       </TabsContent>
 
+      {/* Appointments Tab */}
       <TabsContent value="appointments">
         <Card>
           <CardHeader>
@@ -188,6 +188,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
         </Card>
       </TabsContent>
 
+      {/* Documents Tab */}
       <TabsContent value="documents">
         <Card>
           <CardHeader>
@@ -205,6 +206,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
         </Card>
       </TabsContent>
 
+      {/* Insurance Tab */}
       <TabsContent value="insurance">
         <Card>
           <CardHeader>
@@ -273,23 +275,6 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
                 />
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="journal">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Journal</CardTitle>
-              <Button>
-                <FileText className="h-4 w-4 mr-2" />
-                Eintrag hinzufügen
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div>Keine Journal-Einträge vorhanden</div>
           </CardContent>
         </Card>
       </TabsContent>
