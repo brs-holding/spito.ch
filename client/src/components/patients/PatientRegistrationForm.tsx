@@ -99,7 +99,7 @@ export default function PatientRegistrationForm() {
       // Format the data for the backend
       const formattedData = {
         ...data,
-        dateOfBirth: new Date(data.dateOfBirth).toISOString(),
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth).toISOString() : null,
         address: JSON.stringify(data.address),
         emergencyContact: JSON.stringify(data.emergencyContact),
         currentDiagnoses: JSON.stringify(data.currentDiagnoses),
