@@ -62,4 +62,53 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/:id/pdf", async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const billingId = parseInt(req.params.id);
+    const billing = await db.query.billings.findFirst({
+      where: eq(billings.id, billingId),
+      with: {
+        patient: true,
+        employee: true
+      }
+    });
+
+    if (!billing) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=billing-${billingId}.pdf`);
+
+    doc.pipe(res);
+
+    doc.fontSize(25).text('Billing Record', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12);
+    
+    doc.text(`Billing ID: ${billing.id}`);
+    doc.text(`Amount: CHF ${billing.amount}`);
+    doc.text(`Date: ${new Date(billing.time).toLocaleString()}`);
+    doc.text(`Patient: ${billing.patient?.firstName} ${billing.patient?.lastName}`);
+    doc.text(`Employee: ${billing.employee?.username}`);
+    if (billing.notes) {
+      doc.moveDown();
+      doc.text('Notes:');
+      doc.text(billing.notes);
+    }
+
+    doc.end();
+  } catch (error: any) {
+    console.error("Failed to generate PDF:", error);
+    return res.status(500).json({ message: error.message });
+  }
+});
+
 export const billingsRouter = router;
