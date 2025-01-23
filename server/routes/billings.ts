@@ -47,7 +47,10 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const validatedData = insertBillingSchema.parse(req.body);
+    const validatedData = insertBillingSchema.parse({
+      ...req.body,
+      time: new Date(req.body.time)
+    });
     
     const [billing] = await db.insert(billings).values({
       ...validatedData,

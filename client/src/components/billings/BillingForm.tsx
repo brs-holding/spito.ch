@@ -79,6 +79,7 @@ export function BillingForm() {
         },
         body: JSON.stringify({
           ...data,
+          time: new Date(data.time).toISOString(),
           employeeId: user?.id,
         }),
       });
