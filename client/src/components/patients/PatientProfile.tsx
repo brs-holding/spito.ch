@@ -27,6 +27,7 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch patient data including insurance information
   const { data: patient, isLoading: isLoadingPatient } = useQuery<Patient>({
     queryKey: [`/api/patients/${patientId}`],
   });
@@ -213,27 +214,63 @@ export default function PatientProfile({ patientId }: PatientProfileProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Krankenkasse</p>
-                <p className="font-medium">{patient.healthInsuranceCompany || "-"}</p>
+                <Input
+                  value={patient.healthInsuranceCompany || ""}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsuranceCompany: e.target.value })
+                  }
+                  placeholder="-"
+                />
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Versicherungsnummer</p>
-                <p className="font-medium">{patient.healthInsuranceNumber || "-"}</p>
+                <Input
+                  value={patient.healthInsuranceNumber || ""}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsuranceNumber: e.target.value })
+                  }
+                  placeholder="-"
+                />
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">AHV-Nummer</p>
-                <p className="font-medium">{patient.ahvNumber || "-"}</p>
+                <Input
+                  value={patient.ahvNumber || ""}
+                  onChange={(e) =>
+                    updatePatient.mutate({ ahvNumber: e.target.value })
+                  }
+                  placeholder="-"
+                />
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Adresse</p>
-                <p className="font-medium">{patient.healthInsuranceAddress || "-"}</p>
+                <Input
+                  value={patient.healthInsuranceAddress || ""}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsuranceAddress: e.target.value })
+                  }
+                  placeholder="-"
+                />
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">PLZ</p>
-                <p className="font-medium">{patient.healthInsuranceZip || "-"}</p>
+                <Input
+                  value={patient.healthInsuranceZip || ""}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsuranceZip: e.target.value })
+                  }
+                  placeholder="-"
+                />
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Ort</p>
-                <p className="font-medium">{patient.healthInsurancePlace || "-"}</p>
+                <Input
+                  value={patient.healthInsurancePlace || ""}
+                  onChange={(e) =>
+                    updatePatient.mutate({ healthInsurancePlace: e.target.value })
+                  }
+                  placeholder="-"
+                />
               </div>
             </div>
           </CardContent>

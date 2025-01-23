@@ -1,9 +1,61 @@
 import express, { Request, Response } from "express";
 import { db } from "@db";
 import { patients } from "@db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const router = express.Router();
+
+// GET single patient
+router.get("/:id", async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const patientId = parseInt(req.params.id);
+
+    const patient = await db.query.patients.findFirst({
+      where: eq(patients.id, patientId),
+      columns: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        dateOfBirth: true,
+        gender: true,
+        email: true,
+        phone: true,
+        address: true,
+        emergencyContact: true,
+        medicalHistory: true,
+        healthInsuranceCompany: true,
+        healthInsuranceAddress: true,
+        healthInsuranceZip: true,
+        healthInsurancePlace: true,
+        healthInsuranceNumber: true,
+        ahvNumber: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    // Check if user has permission to access this patient
+    if (req.user.role !== 'super_admin' && patient.organizationId !== req.user.organizationId) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    return res.json(patient);
+  } catch (error: any) {
+    console.error("Failed to fetch patient:", error);
+    return res.status(500).json({ 
+      message: "Failed to fetch patient", 
+      error: error.message 
+    });
+  }
+});
 
 router.post("/", async (req: Request, res: Response) => {
   try {
