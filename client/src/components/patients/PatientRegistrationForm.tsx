@@ -70,6 +70,12 @@ const patientFormSchema = z.object({
     relationship: z.string(),
     accessLevel: z.enum(["full", "limited", "emergency_only"]),
   })).default([]),
+  healthInsuranceCompany: z.string().optional(),
+  healthInsuranceAddress: z.string().optional(),
+  healthInsuranceZip: z.string().optional(),
+  healthInsurancePlace: z.string().optional(),
+  healthInsuranceNumber: z.string().optional(),
+  ahvNumber: z.string().optional(),
 });
 
 type PatientFormValues = z.infer<typeof patientFormSchema>;
@@ -156,6 +162,10 @@ export default function PatientRegistrationForm() {
             <TabsTrigger value="medical">
               <AlertCircle className="h-4 w-4 mr-2" />
               Medizinische Daten
+            </TabsTrigger>
+            <TabsTrigger value="financial">
+              <Shield className="h-4 w-4 mr-2" />
+              Versicherung
             </TabsTrigger>
             <TabsTrigger value="preferences">
               <FileText className="h-4 w-4 mr-2" />
@@ -368,7 +378,6 @@ export default function PatientRegistrationForm() {
             </div>
           </TabsContent>
 
-          {/* ...rest of the component remains untranslated for brevity ... */}
           <TabsContent value="medical" className="space-y-4">
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Versicherungsinformationen</h3>
