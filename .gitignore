@@ -1,3 +1,4 @@
+
 # Dependencies
 node_modules
 .pnp
@@ -41,7 +42,8 @@ replit.nix
 .upm
 .breakpoints
 
-# Original entries (keeping to avoid potential conflicts)
+# Project specific
 server/public
 vite.config.ts.*
 *.tar.gz
+attached_assets/
