@@ -64,6 +64,7 @@ export default function PatientsPage() {
             data={filteredPatients || []}
             isLoading={isLoading}
             onRowClick={(row) => setSelectedPatient(row.original)}
+            onRowClick={(row) => setSelectedPatient(row.original)}
           />
         </CardContent>
       </Card>

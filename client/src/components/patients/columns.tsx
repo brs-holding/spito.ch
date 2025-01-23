@@ -16,6 +16,14 @@ export type Patient = {
 export const columns: ColumnDef<Patient>[] = [
   {
     accessorKey: "firstName",
+    enableSorting: true,
+    cell: ({ row }) => {
+      return (
+        <div className="cursor-pointer">
+          {row.getValue("firstName")}
+        </div>
+      );
+    },
     header: ({ column }) => {
       return (
         <Button
